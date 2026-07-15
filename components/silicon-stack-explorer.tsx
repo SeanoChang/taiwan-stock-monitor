@@ -1,14 +1,15 @@
 'use client';
 
 // Silicon Stack Explorer — ported from the Claude Design project
-// "Silicon Stack Explorer.dc.html". Faithful translation of the DC template
-// + component logic into a Next.js client component.
+// "Silicon Stack Explorer.dc.html". Bilingual (zh-Hant-TW default / en).
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 import Link from 'next/link';
-import { LEVELS, TOUR, COMPANIES } from '@/lib/silicon-stack/data';
+import { LEVELS, TOUR, HINTS, COMPANIES } from '@/lib/silicon-stack/data';
 import type { SceneApi } from '@/lib/silicon-stack/scene';
+import { useI18n } from '@/lib/i18n';
+import type { LStr } from '@/lib/l10n';
 
 export interface SiliconStackExplorerProps {
   accent?: string;      // '#ffb703' | '#4cc9f0' | '#2dd4a7' | '#ff7a59'
@@ -30,18 +31,12 @@ function spark(ticker: string, chg: number) {
   return { str, area };
 }
 
-const HINTS = [
-  'Drag to orbit · Scroll to zoom deeper · Click a label',
-  'Scroll in on the GPUs to go deeper · Scroll out to return',
-  'Scroll in on the die to reach the nanometer scale',
-  'You’ve reached 4 nm — the atomic frontier · Scroll out to return'
-];
-
 export default function SiliconStackExplorer({
   accent = '#ffb703',
   autoRotate = true,
   startLevel = 0
 }: SiliconStackExplorerProps) {
+  const { locale, toggle, pick, t } = useI18n();
   const canvasRef = useRef<HTMLDivElement>(null);
   const layerRef = useRef<HTMLDivElement>(null);
   const apiRef = useRef<SceneApi | null>(null);
@@ -52,7 +47,7 @@ export default function SiliconStackExplorer({
   const [err, setErr] = useState(false);
   const [level, setLevel] = useState(0);
   const [sel, setSel] = useState<string | null>(null);
-  const [selRole, setSelRole] = useState('');
+  const [selRole, setSelRole] = useState<LStr | null>(null);
   const [tour, setTour] = useState(false);
 
   const stopTour = useCallback(() => {
@@ -86,6 +81,7 @@ export default function SiliconStackExplorer({
           accent,
           autoRotate,
           startLevel: Math.max(0, Math.min(3, startLevel)),
+          locale,
           onLevel: (i) => setLevel(i),
           onSelect: (id, role) => { setSel(id); setSelRole(role); },
           onReady: () => setReady(true),
@@ -99,16 +95,17 @@ export default function SiliconStackExplorer({
       apiRef.current?.dispose();
       apiRef.current = null;
     };
-    // Scene is created once; accent/autoRotate updates are pushed below.
+    // Scene is created once; accent/autoRotate/locale updates are pushed below.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => { apiRef.current?.setAccent(accent); }, [accent]);
   useEffect(() => { apiRef.current?.setAutoRotate(autoRotate); }, [autoRotate]);
+  useEffect(() => { apiRef.current?.setLocale(locale); }, [locale]);
 
   const go = (i: number) => apiRef.current?.goLevel(i);
 
-  const L = LEVELS[level] ?? { name: '', zh: '', blurb: '', scale: '' };
+  const L = LEVELS[level] ?? LEVELS[0];
   const c = sel ? COMPANIES[sel] : null;
   const sp = useMemo(
     () => (c && !c.private ? spark(c.ticker, c.chg) : { str: '', area: '' }),
@@ -116,6 +113,10 @@ export default function SiliconStackExplorer({
   );
   const up = c ? c.chg >= 0 : true;
   const notTouring = !tour && ready && !err;
+
+  // level identity line: small amber line shows the other locale + scale; big shows current
+  const levelBig = pick(L.name);
+  const levelSmall = locale === 'zh' ? `${L.name.en.toUpperCase()} · ${L.scale}` : `${L.zh} · ${L.scale}`;
 
   const rootStyle = {
     '--accent': accent,
@@ -143,28 +144,36 @@ export default function SiliconStackExplorer({
             <span style={{ fontSize: 12, color: 'rgba(238,244,251,0.5)', letterSpacing: '0.32em' }}>矽鏈</span>
           </div>
           <span style={{ fontSize: 11.5, color: 'rgba(238,244,251,0.52)', letterSpacing: '0.02em' }}>
-            Taiwan &amp; the global AI supply chain · from rack to nanometer
+            {t('brandSub')}
           </span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, pointerEvents: 'auto' }}>
+          <button
+            onClick={toggle}
+            title={locale === 'zh' ? 'Switch to English' : '切換為繁體中文'}
+            className="ss-ghost-btn"
+            style={{ fontFamily: 'inherit', fontSize: 12, fontWeight: 600, letterSpacing: '0.06em', color: 'rgba(238,244,251,0.75)', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.14)', borderRadius: 999, padding: '8px 14px', cursor: 'pointer' }}
+          >
+            {locale === 'zh' ? 'EN' : '繁中'}
+          </button>
           <Link
             href="/supply-chain"
             className="ss-ghost-btn"
             style={{ fontSize: 12.5, fontWeight: 600, letterSpacing: '0.03em', color: 'rgba(238,244,251,0.75)', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.14)', borderRadius: 999, padding: '9px 18px' }}
           >
-            Supply chain map →
+            {t('supplyChainMap')}
           </Link>
           <span style={{ fontSize: 10.5, color: 'rgba(238,244,251,0.45)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 999, padding: '5px 11px', letterSpacing: '0.04em' }}>
-            Illustrative data · 15 Jul 2026
+            {t('illustrative')}
           </span>
           {notTouring && (
             <button onClick={startTour} className="ss-tour-btn" style={{ fontFamily: 'inherit', fontSize: 12.5, fontWeight: 600, letterSpacing: '0.03em', color: '#0d1b2a', background: 'var(--accent, #ffb703)', border: 'none', borderRadius: 999, padding: '9px 18px', cursor: 'pointer' }}>
-              Guided tour
+              {t('guidedTour')}
             </button>
           )}
           {tour && (
             <button onClick={stopTour} style={{ fontFamily: 'inherit', fontSize: 12.5, fontWeight: 600, color: '#eef4fb', background: 'transparent', border: '1px solid rgba(255,255,255,0.3)', borderRadius: 999, padding: '9px 18px', cursor: 'pointer' }}>
-              Exit tour
+              {t('exitTour')}
             </button>
           )}
         </div>
@@ -173,18 +182,19 @@ export default function SiliconStackExplorer({
       {/* bottom bar: identity · rail · hint (flex, no overlap at narrow widths) */}
       <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, zIndex: 10, display: 'flex', alignItems: 'flex-end', gap: 20, padding: '0 32px 28px', pointerEvents: 'none' }}>
         <div style={{ flex: '1 1 0', minWidth: 0 }}>
-          <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.22em', color: 'var(--accent, #ffb703)', marginBottom: 6 }}>{L.zh} · {L.scale}</div>
-          <div style={{ fontSize: 'clamp(19px, 2.6vw, 30px)', fontWeight: 300, letterSpacing: '-0.01em', lineHeight: 1.1, marginBottom: 7, whiteSpace: 'nowrap' }}>{L.name}</div>
-          <div style={{ fontSize: 12.5, color: 'rgba(238,244,251,0.6)', lineHeight: 1.5, maxWidth: 340 }}>{L.blurb}</div>
+          <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.22em', color: 'var(--accent, #ffb703)', marginBottom: 6 }}>{levelSmall}</div>
+          <div style={{ fontSize: 'clamp(19px, 2.6vw, 30px)', fontWeight: locale === 'zh' ? 400 : 300, letterSpacing: '-0.01em', lineHeight: 1.1, marginBottom: 7, whiteSpace: 'nowrap' }}>{levelBig}</div>
+          <div style={{ fontSize: 12.5, color: 'rgba(238,244,251,0.6)', lineHeight: 1.5, maxWidth: 340 }}>{pick(L.blurb)}</div>
         </div>
         <div style={{ flex: 'none', display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(10,20,33,0.72)', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 999, padding: '7px 10px', pointerEvents: 'auto' }}>
           {level > 0 && ready && !err && (
-            <button onClick={() => go(level - 1)} title="Zoom out one level" className="ss-ghost-btn" style={{ fontFamily: 'inherit', fontSize: 12, fontWeight: 600, color: 'rgba(238,244,251,0.75)', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.14)', borderRadius: 999, padding: '7px 13px', cursor: 'pointer', marginRight: 4 }}>
-              ↖ Out
+            <button onClick={() => go(level - 1)} title={t('zoomOutTitle')} className="ss-ghost-btn" style={{ fontFamily: 'inherit', fontSize: 12, fontWeight: 600, color: 'rgba(238,244,251,0.75)', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.14)', borderRadius: 999, padding: '7px 13px', cursor: 'pointer', marginRight: 4 }}>
+              {t('zoomOut')}
             </button>
           )}
           {LEVELS.map((lv, i) => {
             const active = i === level;
+            const railName = locale === 'zh' ? lv.zh : lv.name.en.replace('The ', '').replace('Inside the ', '');
             return (
               <button
                 key={lv.key}
@@ -199,7 +209,7 @@ export default function SiliconStackExplorer({
                 }}
               >
                 <span style={{ width: 7, height: 7, borderRadius: '50%', flex: 'none', background: active ? accent : 'rgba(238,244,251,0.28)' }} />
-                <span>{lv.name.replace('The ', '').replace('Inside the ', '')}</span>
+                <span>{railName}</span>
               </button>
             );
           })}
@@ -207,7 +217,7 @@ export default function SiliconStackExplorer({
         <div style={{ flex: '1 1 0', minWidth: 0, display: 'flex', justifyContent: 'flex-end' }}>
           {notTouring && (
             <div style={{ fontSize: 11.5, color: 'rgba(238,244,251,0.45)', letterSpacing: '0.02em', textAlign: 'right', lineHeight: 1.6, maxWidth: 210, paddingBottom: 4 }}>
-              {HINTS[level] || HINTS[0]}
+              {pick(HINTS[level] || HINTS[0])}
             </div>
           )}
         </div>
@@ -216,24 +226,24 @@ export default function SiliconStackExplorer({
       {/* tour caption */}
       {tour && (
         <div style={{ position: 'absolute', left: '50%', bottom: 92, transform: 'translateX(-50%)', zIndex: 11, maxWidth: 620, width: 'calc(100% - 48px)', background: 'rgba(10,20,33,0.82)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', border: '1px solid rgba(255,255,255,0.14)', borderRadius: 14, padding: '16px 22px', fontSize: 14.5, lineHeight: 1.55, color: 'rgba(238,244,251,0.92)', textAlign: 'center', animation: 'fadeUp 0.5s ease' }}>
-          {TOUR[level]}
+          {pick(TOUR[level])}
         </div>
       )}
 
       {/* company panel */}
       {c && (
         <div style={{ position: 'absolute', top: 0, right: 0, bottom: 0, width: 390, maxWidth: '92vw', zIndex: 20, background: 'rgba(11,22,36,0.88)', backdropFilter: 'blur(18px)', WebkitBackdropFilter: 'blur(18px)', borderLeft: '1px solid rgba(255,255,255,0.1)', display: 'flex', flexDirection: 'column', animation: 'fadeUp 0.35s ease' }}>
-          <button onClick={() => setSel(null)} title="Close" className="ss-ghost-btn" style={{ position: 'absolute', top: 18, right: 18, width: 34, height: 34, borderRadius: '50%', border: '1px solid rgba(255,255,255,0.16)', background: 'rgba(255,255,255,0.04)', color: 'rgba(238,244,251,0.8)', fontSize: 14, cursor: 'pointer', zIndex: 2, fontFamily: 'inherit' }}>
+          <button onClick={() => setSel(null)} title={t('close')} className="ss-ghost-btn" style={{ position: 'absolute', top: 18, right: 18, width: 34, height: 34, borderRadius: '50%', border: '1px solid rgba(255,255,255,0.16)', background: 'rgba(255,255,255,0.04)', color: 'rgba(238,244,251,0.8)', fontSize: 14, cursor: 'pointer', zIndex: 2, fontFamily: 'inherit' }}>
             ✕
           </button>
           <div className="ss-scroll" style={{ flex: 1, overflowY: 'auto', padding: '30px 28px 20px' }}>
             <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--accent, #ffb703)', marginBottom: 10 }}>
-              {selRole || c.role}
+              {selRole ? pick(selRole) : pick(c.role)}
             </div>
             <div style={{ fontSize: 24, fontWeight: 600, letterSpacing: '-0.01em', lineHeight: 1.2, marginBottom: 10, paddingRight: 30 }}>{c.name}</div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 22 }}>
               <span style={{ fontFamily: "ui-monospace, 'SF Mono', Menlo, monospace", fontSize: 12, fontWeight: 600, color: '#0d1b2a', background: 'var(--accent, #ffb703)', borderRadius: 6, padding: '3px 8px' }}>{c.ticker}</span>
-              <span style={{ fontSize: 12, color: 'rgba(238,244,251,0.55)' }}>{c.exch} · {c.country}</span>
+              <span style={{ fontSize: 12, color: 'rgba(238,244,251,0.55)' }}>{c.exch} · {pick(c.country)}</span>
             </div>
 
             {!c.private && (
@@ -250,42 +260,42 @@ export default function SiliconStackExplorer({
                 </svg>
               </>
             )}
-            {c.private && (
+            {c.private && c.note && (
               <div style={{ fontSize: 13, color: 'rgba(238,244,251,0.75)', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10, padding: '12px 14px', marginBottom: 18 }}>
-                {c.note || ''}
+                {pick(c.note)}
               </div>
             )}
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 20 }}>
               <div style={{ background: 'rgba(255,255,255,0.045)', borderRadius: 10, padding: '12px 14px' }}>
-                <div style={{ fontSize: 10, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'rgba(238,244,251,0.45)', marginBottom: 4 }}>Market cap</div>
+                <div style={{ fontSize: 10, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'rgba(238,244,251,0.45)', marginBottom: 4 }}>{t('marketCap')}</div>
                 <div style={{ fontSize: 15, fontWeight: 600 }}>{c.mcapText}</div>
               </div>
               <div style={{ background: 'rgba(255,255,255,0.045)', borderRadius: 10, padding: '12px 14px' }}>
-                <div style={{ fontSize: 10, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'rgba(238,244,251,0.45)', marginBottom: 4 }}>Position</div>
-                <div style={{ fontSize: 12.5, fontWeight: 600, lineHeight: 1.35 }}>{c.share}</div>
+                <div style={{ fontSize: 10, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'rgba(238,244,251,0.45)', marginBottom: 4 }}>{t('position')}</div>
+                <div style={{ fontSize: 12.5, fontWeight: 600, lineHeight: 1.35 }}>{pick(c.share)}</div>
               </div>
             </div>
 
-            <div style={{ fontSize: 13.5, lineHeight: 1.6, color: 'rgba(238,244,251,0.78)', marginBottom: 24 }}>{c.desc}</div>
+            <div style={{ fontSize: 13.5, lineHeight: 1.7, color: 'rgba(238,244,251,0.78)', marginBottom: 24 }}>{pick(c.desc)}</div>
 
-            <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'rgba(238,244,251,0.45)', marginBottom: 10 }}>Supply chain</div>
+            <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'rgba(238,244,251,0.45)', marginBottom: 10 }}>{t('supplyChainSec')}</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {(c.links || []).map((lk) => (
                 <button
-                  key={lk.to + lk.label}
+                  key={lk.to + lk.label.en}
                   onClick={() => { setSel(lk.to); setSelRole(COMPANIES[lk.to].role); }}
                   className="ss-link-btn"
                   style={{ display: 'flex', alignItems: 'baseline', gap: 8, textAlign: 'left', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10, padding: '10px 13px', cursor: 'pointer', fontFamily: 'inherit', color: '#eef4fb', width: '100%' }}
                 >
                   <span style={{ fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap' }}>{COMPANIES[lk.to].short}</span>
-                  <span style={{ fontSize: 11.5, color: 'rgba(238,244,251,0.55)' }}>{lk.label}</span>
+                  <span style={{ fontSize: 11.5, color: 'rgba(238,244,251,0.55)' }}>{pick(lk.label)}</span>
                 </button>
               ))}
             </div>
           </div>
           <div style={{ padding: '14px 28px', borderTop: '1px solid rgba(255,255,255,0.08)', fontSize: 10.5, color: 'rgba(238,244,251,0.4)', lineHeight: 1.5 }}>
-            Illustrative snapshot for design purposes — not live quotes, not investment advice.
+            {t('panelDisclaimer')}
           </div>
         </div>
       )}
@@ -298,13 +308,13 @@ export default function SiliconStackExplorer({
             <span style={{ fontSize: 13, color: 'rgba(238,244,251,0.5)', letterSpacing: '0.32em' }}>矽鏈</span>
           </div>
           <div style={{ width: 26, height: 26, border: '2px solid rgba(255,255,255,0.15)', borderTopColor: 'var(--accent, #ffb703)', borderRadius: '50%', animation: 'spin 0.9s linear infinite' }} />
-          <div style={{ fontSize: 12, color: 'rgba(238,244,251,0.5)', letterSpacing: '0.04em' }}>Preparing the data center…</div>
+          <div style={{ fontSize: 12, color: 'rgba(238,244,251,0.5)', letterSpacing: '0.04em' }}>{t('preparing')}</div>
         </div>
       )}
       {err && (
         <div style={{ position: 'absolute', inset: 0, zIndex: 31, background: '#0d1b2a', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 40 }}>
           <div style={{ maxWidth: 380, textAlign: 'center', fontSize: 14, lineHeight: 1.6, color: 'rgba(238,244,251,0.75)' }}>
-            Couldn&apos;t load the 3D engine. Reload to retry.
+            {t('loadError')}
           </div>
         </div>
       )}

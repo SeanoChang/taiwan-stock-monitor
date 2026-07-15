@@ -1,7 +1,9 @@
 // Silicon Stack — Three.js scene: 4 zoom levels, custom orbit controls, DOM hotspots, transitions.
-// Ported from the Claude Design project to use the npm `three` module build.
+// Ported from the Claude Design project to use the npm `three` module build. Bilingual hotspots.
 
 import * as THREE from 'three';
+import { l } from '@/lib/l10n';
+import type { Locale, LStr } from '@/lib/l10n';
 
 export interface SceneOptions {
   container: HTMLElement;
@@ -9,7 +11,8 @@ export interface SceneOptions {
   accent?: string;
   autoRotate?: boolean;
   startLevel?: number;
-  onSelect: (id: string, role: string) => void;
+  locale?: Locale;
+  onSelect: (id: string, role: LStr) => void;
   onLevel: (i: number) => void;
   onReady?: () => void;
   onInteract?: () => void;
@@ -20,16 +23,22 @@ export interface SceneApi {
   goLevel: (i: number) => Promise<void>;
   setAccent: (hex: string) => void;
   setAutoRotate: (b: boolean) => void;
+  setLocale: (loc: Locale) => void;
   dispose: () => void;
 }
 
+/** same string in both locales (company names etc.) */
+const s = (x: string): LStr => ({ en: x, zh: x });
+
 interface Hotspot {
-  title: string;
-  sub: string;
+  title: LStr;
+  sub: LStr;
   pos: THREE.Vector3;
   company: string | null;
   type: string;
   el: HTMLButtonElement | null;
+  t1: HTMLSpanElement | null;
+  t2: HTMLSpanElement | null;
 }
 
 interface CamSpec {
@@ -52,6 +61,7 @@ interface Level {
 
 export function createScene(opts: SceneOptions): SceneApi {
   const { container, layer, accent, autoRotate, onSelect, onLevel, onReady, onInteract, onDepthEnd } = opts;
+  let LOCALE: Locale = opts.locale || 'zh';
 
   const BG = 0x0d1b2a;
   let ACC = new THREE.Color(accent || '#ffb703');
@@ -127,8 +137,8 @@ export function createScene(opts: SceneOptions): SceneApi {
     const lv: Level = { group, hotspots: [], descendPoint: null, cam: {} as CamSpec, fog: [18, 46], dom: null };
     build(group, lv); levels.push(lv); return lv;
   }
-  function hs(lv: Level, title: string, sub: string, x: number, y: number, z: number, company?: string | null, type?: string) {
-    lv.hotspots.push({ title, sub, pos: new THREE.Vector3(x, y, z), company: company || null, type: type || 'info', el: null });
+  function hs(lv: Level, title: LStr, sub: LStr, x: number, y: number, z: number, company?: string | null, type?: string) {
+    lv.hotspots.push({ title, sub, pos: new THREE.Vector3(x, y, z), company: company || null, type: type || 'info', el: null, t1: null, t2: null });
   }
 
   // ----- L0: rack row -----
@@ -162,13 +172,13 @@ export function createScene(opts: SceneOptions): SceneApi {
     [-2.7, -1.35, 0, 1.35, 2.7].forEach(x => cyl(0.03, 0.03, 0.26, M.dark, x, 2.22, 0, g));
 
     lv.descendPoint = new THREE.Vector3(0, 1.15, 0.55);
-    hs(lv, 'GPU platform', 'NVIDIA', 0, 2.18, 0.4, 'nvidia');
-    hs(lv, 'Rack integration', 'Foxconn 鴻海', -2.7, 1.5, 0.55, 'foxconn');
-    hs(lv, 'Server ODM', 'Quanta 廣達', 1.35, 1.7, 0.55, 'quanta');
-    hs(lv, 'Rack systems', 'Supermicro', 2.7, 1.1, 0.55, 'smci');
-    hs(lv, 'Power busway', 'Delta 台達電', -1.2, 2.45, 0.15, 'delta');
-    hs(lv, 'Cooling plant', 'Vertiv', 4.15, 1.75, 0.5, 'vertiv');
-    hs(lv, 'Open a server', 'zoom in', 0, 1.0, 0.6, null, 'descend');
+    hs(lv, l('GPU platform', 'GPU 平台'), s('NVIDIA'), 0, 2.18, 0.4, 'nvidia');
+    hs(lv, l('Rack integration', '機櫃整合'), s('Foxconn 鴻海'), -2.7, 1.5, 0.55, 'foxconn');
+    hs(lv, l('Server ODM', '伺服器代工'), s('Quanta 廣達'), 1.35, 1.7, 0.55, 'quanta');
+    hs(lv, l('Rack systems', '整櫃系統'), s('Supermicro'), 2.7, 1.1, 0.55, 'smci');
+    hs(lv, l('Power busway', '電力匯流排'), s('Delta 台達電'), -1.2, 2.45, 0.15, 'delta');
+    hs(lv, l('Cooling plant', '冷卻設備'), s('Vertiv'), 4.15, 1.75, 0.5, 'vertiv');
+    hs(lv, l('Open a server', '打開伺服器'), l('zoom in', '放大'), 0, 1.0, 0.6, null, 'descend');
   });
 
   // ----- L1: inside the server -----
@@ -218,14 +228,14 @@ export function createScene(opts: SceneOptions): SceneApi {
     box(0.02, 0.006, 0.02, GLOW, -0.35, -0.104, 0.28, ch);
 
     lv.descendPoint = new THREE.Vector3(-0.24, 0.05, -0.33);
-    hs(lv, 'GPU modules', 'NVIDIA', 0.72, 0.12, -0.5, 'nvidia');
-    hs(lv, 'Power supplies', 'Delta 台達電', -0.85, 0.08, 0.34, 'delta');
-    hs(lv, 'Thermal modules', 'AVC 奇鋐', -0.88, 0.15, 0.62, 'avc');
-    hs(lv, 'Server board PCB', 'Gold Circuit 金像電', 1.05, -0.1, 0.05, 'gce');
-    hs(lv, 'BMC chip', 'ASPEED 信驊', -0.35, -0.08, 0.28, 'aspeed');
-    hs(lv, 'Networking', 'Broadcom', 0.95, -0.02, 0.55, 'broadcom');
-    hs(lv, 'Chassis & assembly', 'Quanta 廣達', -1.15, 0.18, -0.4, 'quanta');
-    hs(lv, 'Into the GPU package', 'zoom in', -0.24, 0.12, -0.33, null, 'descend');
+    hs(lv, l('GPU modules', 'GPU 模組'), s('NVIDIA'), 0.72, 0.12, -0.5, 'nvidia');
+    hs(lv, l('Power supplies', '電源供應器'), s('Delta 台達電'), -0.85, 0.08, 0.34, 'delta');
+    hs(lv, l('Thermal modules', '散熱模組'), s('AVC 奇鋐'), -0.88, 0.15, 0.62, 'avc');
+    hs(lv, l('Server board PCB', '伺服器主機板'), s('Gold Circuit 金像電'), 1.05, -0.1, 0.05, 'gce');
+    hs(lv, l('BMC chip', 'BMC 晶片'), s('ASPEED 信驊'), -0.35, -0.08, 0.28, 'aspeed');
+    hs(lv, l('Networking', '網路晶片'), s('Broadcom'), 0.95, -0.02, 0.55, 'broadcom');
+    hs(lv, l('Chassis & assembly', '機殼與組裝'), s('Quanta 廣達'), -1.15, 0.18, -0.4, 'quanta');
+    hs(lv, l('Into the GPU package', '進入晶片封裝'), l('zoom in', '放大'), -0.24, 0.12, -0.33, null, 'descend');
   });
 
   // ----- L2: GPU package -----
@@ -274,13 +284,13 @@ export function createScene(opts: SceneOptions): SceneApi {
       box(0.06, 0.03, 0.1, M.gold, Math.cos(a) * 1.35, 0.085, Math.sin(a) * 1.35, g);
     }
     lv.descendPoint = new THREE.Vector3(0, 0.35, 0);
-    hs(lv, 'GPU die · 4nm', 'TSMC 台積電', 0, 0.36, -0.45, 'tsmc');
-    hs(lv, 'HBM memory', 'SK hynix', -0.95, 0.5, -1.02, 'skhynix');
-    hs(lv, 'HBM memory', 'Micron', 0.95, 0.5, 1.02, 'micron');
-    hs(lv, 'CoWoS interposer', 'TSMC 台積電', -1.0, 0.22, 0.35, 'tsmc');
-    hs(lv, 'ABF substrate', 'Unimicron 欣興', 1.35, 0.06, -0.9, 'unimicron');
-    hs(lv, 'Package & test', 'ASE 日月光', -1.45, 0.06, 1.1, 'ase');
-    hs(lv, 'Onto the silicon', 'zoom in', 0.25, 0.36, 0.3, null, 'descend');
+    hs(lv, l('GPU die · 4nm', 'GPU 裸晶 · 4nm'), s('TSMC 台積電'), 0, 0.36, -0.45, 'tsmc');
+    hs(lv, l('HBM memory', 'HBM 記憶體'), s('SK hynix'), -0.95, 0.5, -1.02, 'skhynix');
+    hs(lv, l('HBM memory', 'HBM 記憶體'), s('Micron'), 0.95, 0.5, 1.02, 'micron');
+    hs(lv, l('CoWoS interposer', 'CoWoS 中介層'), s('TSMC 台積電'), -1.0, 0.22, 0.35, 'tsmc');
+    hs(lv, l('ABF substrate', 'ABF 載板'), s('Unimicron 欣興'), 1.35, 0.06, -0.9, 'unimicron');
+    hs(lv, l('Package & test', '封裝測試'), s('ASE 日月光'), -1.45, 0.06, 1.1, 'ase');
+    hs(lv, l('Onto the silicon', '深入矽晶'), l('zoom in', '放大'), 0.25, 0.36, 0.3, null, 'descend');
   });
 
   // ----- L3: transistor / nm -----
@@ -306,14 +316,14 @@ export function createScene(opts: SceneOptions): SceneApi {
     box(3.9, 0.045, 2.9, M.glassy, 0, 1.25, 0, g);
     for (let i = 0; i < 6; i++) box(0.08, 0.05, 2.7, M.steel, -1.4 + i * 0.56, 1.1, 0, g);
     lv.descendPoint = null;
-    hs(lv, 'EUV lithography', 'ASML', -1.7, 1.5, -0.9, 'asml');
-    hs(lv, 'EUV optics', 'Zeiss SMT', 1.8, 1.45, -0.7, 'zeiss');
-    hs(lv, 'Photoresist', 'Shin-Etsu', -1.9, 0.5, 0.9, 'shinetsu');
-    hs(lv, 'Silicon wafer', 'GlobalWafers 環球晶', 1.5, 0.05, 1.3, 'globalwafers');
-    hs(lv, 'Coat & develop', 'Tokyo Electron', 0.4, 1.32, 0.9, 'tel');
-    hs(lv, 'Plasma etch', 'Lam Research', -0.6, 0.42, -1.35, 'lam');
-    hs(lv, 'Deposition', 'Applied Materials', 1.1, 0.98, 0.2, 'amat');
-    hs(lv, 'Metrology', 'KLA', -0.2, 0.05, 1.5, 'kla');
+    hs(lv, l('EUV lithography', 'EUV 微影'), s('ASML'), -1.7, 1.5, -0.9, 'asml');
+    hs(lv, l('EUV optics', 'EUV 光學'), s('Zeiss SMT'), 1.8, 1.45, -0.7, 'zeiss');
+    hs(lv, l('Photoresist', '光阻'), s('Shin-Etsu'), -1.9, 0.5, 0.9, 'shinetsu');
+    hs(lv, l('Silicon wafer', '矽晶圓'), s('GlobalWafers 環球晶'), 1.5, 0.05, 1.3, 'globalwafers');
+    hs(lv, l('Coat & develop', '塗佈顯影'), s('Tokyo Electron'), 0.4, 1.32, 0.9, 'tel');
+    hs(lv, l('Plasma etch', '電漿蝕刻'), s('Lam Research'), -0.6, 0.42, -1.35, 'lam');
+    hs(lv, l('Deposition', '薄膜沉積'), s('Applied Materials'), 1.1, 0.98, 0.2, 'amat');
+    hs(lv, l('Metrology', '量測檢測'), s('KLA'), -0.2, 0.05, 1.5, 'kla');
   });
 
   // ---------- hotspot DOM ----------
@@ -340,12 +350,13 @@ export function createScene(opts: SceneOptions): SceneApi {
       const tx = document.createElement('span');
       tx.style.cssText = 'display:flex;flex-direction:column;align-items:flex-start;gap:1px;text-align:left;';
       const t1 = document.createElement('span');
-      t1.textContent = h.title;
+      t1.textContent = h.title[LOCALE];
       t1.style.cssText = 'font-size:12.5px;font-weight:600;letter-spacing:0.01em;';
       const t2 = document.createElement('span');
-      t2.textContent = h.sub;
+      t2.textContent = h.sub[LOCALE];
       t2.style.cssText = 'font-size:11px;color:' + (desc ? 'var(--accent,#ffb703)' : 'rgba(238,244,251,0.58)') + ';';
       tx.appendChild(t1); tx.appendChild(t2);
+      h.t1 = t1; h.t2 = t2;
       b.appendChild(dot); b.appendChild(tx);
       b.onmouseenter = () => { b.style.borderColor = 'var(--accent,#ffb703)'; b.style.background = 'rgba(16,30,47,0.9)'; };
       b.onmouseleave = () => { b.style.borderColor = desc ? 'var(--accent,#ffb703)' : 'rgba(255,255,255,0.14)'; b.style.background = 'rgba(10,20,33,0.74)'; };
@@ -497,6 +508,13 @@ export function createScene(opts: SceneOptions): SceneApi {
       accentLights.forEach(l => l.color.copy(ACC));
     },
     setAutoRotate(b: boolean) { AUTOROT = b !== false; },
+    setLocale(loc: Locale) {
+      LOCALE = loc;
+      levels.forEach(lv => lv.hotspots.forEach(h => {
+        if (h.t1) h.t1.textContent = h.title[loc];
+        if (h.t2) h.t2.textContent = h.sub[loc];
+      }));
+    },
     dispose() {
       disposed = true;
       renderer.dispose();
