@@ -4,8 +4,8 @@
 // investment use. Structure: STAGES → CATEGORIES (chain nodes) → COMPANIES, plus
 // company→company relationship edges (rel) for 1st/2nd-degree exploration.
 
-import { l } from '@/lib/l10n';
-import type { LStr } from '@/lib/l10n';
+import { l } from '@/lib/i18n/config';
+import type { LStr } from '@/lib/i18n/config';
 
 export type StageId =
   | 'materials'

@@ -2,8 +2,8 @@
 // Bilingual (en / zh-Hant-TW). Structured so a live quote API can later replace
 // priceText/chg/mcapText per ticker.
 
-import { l } from '@/lib/l10n';
-import type { LStr } from '@/lib/l10n';
+import { l } from '@/lib/i18n/config';
+import type { LStr } from '@/lib/i18n/config';
 
 export interface Level {
   id: number;

@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import { I18nProvider } from "@/lib/i18n";
+import { getLocale } from "@/lib/i18n/server";
+import { HTML_LANG } from "@/lib/i18n/config";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -14,28 +15,30 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "矽鏈 Silicon Stack — 台灣 AI 供應鏈",
+  title: {
+    default: "矽鏈 Silicon Stack — 台灣 AI 供應鏈",
+    template: "%s — 矽鏈 Silicon Stack",
+  },
   description:
-    "台灣與全球 AI 供應鏈 · 從機櫃到奈米。互動式 3D 探索與供應鏈網絡圖。Taiwan & the global AI supply chain — interactive 3D explorer and supply-chain network graph.",
+    "台灣與全球 AI 供應鏈 · 從機櫃到奈米。互動式 3D 探索、供應鏈網絡圖與台股即時行情。Taiwan & the global AI supply chain — 3D explorer, network graph and live market board.",
 };
 
 export const viewport: Viewport = {
   themeColor: "#0d1b2a",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const locale = await getLocale();
   return (
     <html
-      lang="zh-Hant-TW"
+      lang={HTML_LANG[locale]}
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">
-        <I18nProvider>{children}</I18nProvider>
-      </body>
+      <body className="min-h-full">{children}</body>
     </html>
   );
 }

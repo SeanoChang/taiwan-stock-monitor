@@ -2,8 +2,8 @@
 // Ported from the Claude Design project to use the npm `three` module build. Bilingual hotspots.
 
 import * as THREE from 'three';
-import { l } from '@/lib/l10n';
-import type { Locale, LStr } from '@/lib/l10n';
+import { l } from '@/lib/i18n/config';
+import type { Locale, LStr } from '@/lib/i18n/config';
 
 export interface SceneOptions {
   container: HTMLElement;
@@ -334,32 +334,25 @@ export function createScene(opts: SceneOptions): SceneApi {
     lv.hotspots.forEach(h => {
       const b = document.createElement('button');
       const desc = h.type === 'descend';
-      b.style.cssText = 'position:absolute;left:0;top:0;display:flex;align-items:center;gap:9px;padding:7px 15px 7px 9px;'
-        + 'background:rgba(10,20,33,0.74);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);'
-        + 'border:1px solid ' + (desc ? 'var(--accent,#ffb703)' : 'rgba(255,255,255,0.14)') + ';border-radius:999px;'
-        + 'color:#eef4fb;cursor:pointer;pointer-events:auto;white-space:nowrap;font:inherit;'
-        + 'transition:border-color .2s,background .2s,opacity .3s;will-change:transform;';
+      b.className = desc ? 'ss-hotspot ss-hotspot--descend' : 'ss-hotspot';
       const dot = document.createElement('span');
       if (desc) {
         dot.textContent = '+';
-        dot.style.cssText = 'width:16px;height:16px;border-radius:50%;border:1.5px solid var(--accent,#ffb703);color:var(--accent,#ffb703);'
-          + 'display:flex;align-items:center;justify-content:center;font:600 12px/1 ui-monospace,Menlo,monospace;flex:none;animation:hsPulse 2.2s infinite;';
+        dot.className = 'ss-hotspot__plus';
       } else {
-        dot.style.cssText = 'width:9px;height:9px;border-radius:50%;background:var(--accent,#ffb703);flex:none;animation:hsPulse 2.6s infinite;';
+        dot.className = 'ss-hotspot__dot';
       }
       const tx = document.createElement('span');
-      tx.style.cssText = 'display:flex;flex-direction:column;align-items:flex-start;gap:1px;text-align:left;';
+      tx.className = 'ss-hotspot__text';
       const t1 = document.createElement('span');
       t1.textContent = h.title[LOCALE];
-      t1.style.cssText = 'font-size:12.5px;font-weight:600;letter-spacing:0.01em;';
+      t1.className = 'ss-hotspot__title';
       const t2 = document.createElement('span');
       t2.textContent = h.sub[LOCALE];
-      t2.style.cssText = 'font-size:11px;color:' + (desc ? 'var(--accent,#ffb703)' : 'rgba(238,244,251,0.58)') + ';';
+      t2.className = 'ss-hotspot__sub';
       tx.appendChild(t1); tx.appendChild(t2);
       h.t1 = t1; h.t2 = t2;
       b.appendChild(dot); b.appendChild(tx);
-      b.onmouseenter = () => { b.style.borderColor = 'var(--accent,#ffb703)'; b.style.background = 'rgba(16,30,47,0.9)'; };
-      b.onmouseleave = () => { b.style.borderColor = desc ? 'var(--accent,#ffb703)' : 'rgba(255,255,255,0.14)'; b.style.background = 'rgba(10,20,33,0.74)'; };
       b.onclick = (e) => {
         e.stopPropagation();
         if (desc) { api.goLevel(li + 1); }
