@@ -8,10 +8,12 @@ export function Brand({ locale, tagline = false }: { locale: Locale; tagline?: b
     <div className="flex flex-col gap-0.5">
       <Link href="/" className="flex items-baseline gap-2.5 outline-none">
         <span className="text-base font-bold tracking-[0.16em]">SILICON STACK</span>
-        <span className="text-xs tracking-[0.32em] text-foreground/50">矽鏈</span>
+        <span className="text-foreground/50 text-xs tracking-[0.32em]">矽鏈</span>
       </Link>
       {tagline && (
-        <span className="text-[11.5px] tracking-wide text-foreground/50">{t('brandSub', locale)}</span>
+        <span className="text-foreground/50 text-[11.5px] tracking-wide">
+          {t('brandSub', locale)}
+        </span>
       )}
     </div>
   );

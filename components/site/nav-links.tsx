@@ -14,13 +14,13 @@ const LINKS: { href: string; key: UIKey }[] = [
 export function NavLinks({ locale, current }: { locale: Locale; current: string }) {
   return (
     <nav className="flex items-center gap-2">
-      {LINKS.filter(link => link.href !== current).map(link => (
+      {LINKS.filter((link) => link.href !== current).map((link) => (
         <Button
           key={link.href}
           render={<Link href={link.href} />}
           variant="outline"
           size="sm"
-          className="ss-veil rounded-full border-border text-xs font-semibold text-foreground/75 hover:text-foreground"
+          className="ss-veil border-border text-foreground/75 hover:text-foreground rounded-full text-xs font-semibold"
         >
           {t(link.key, locale)}
         </Button>

@@ -57,9 +57,14 @@ export function useScene(
   const tourStepRef = useRef<(i: number) => void>(() => {});
   useEffect(() => {
     tourStepRef.current = (i: number) => {
-      if (i > LAST_LEVEL) { stopTour(); return; }
+      if (i > LAST_LEVEL) {
+        stopTour();
+        return;
+      }
       apiRef.current?.goLevel(i);
-      tourTimer.current = setTimeout(() => { if (tourRef.current) tourStepRef.current(i + 1); }, TOUR_STEP_MS);
+      tourTimer.current = setTimeout(() => {
+        if (tourRef.current) tourStepRef.current(i + 1);
+      }, TOUR_STEP_MS);
     };
   }, [stopTour]);
 
@@ -84,9 +89,14 @@ export function useScene(
           startLevel: Math.max(0, Math.min(LAST_LEVEL, startLevel)),
           locale,
           onLevel: setLevel,
-          onSelect: (id, role) => { setSelection(id); setSelectionRole(role); },
+          onSelect: (id, role) => {
+            setSelection(id);
+            setSelectionRole(role);
+          },
           onReady: () => setReady(true),
-          onInteract: () => { if (tourRef.current) stopTour(); },
+          onInteract: () => {
+            if (tourRef.current) stopTour();
+          },
         });
       })
       .catch((e) => {
@@ -104,15 +114,34 @@ export function useScene(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  useEffect(() => { apiRef.current?.setAccent(accent); }, [accent]);
-  useEffect(() => { apiRef.current?.setAutoRotate(autoRotate); }, [autoRotate]);
-  useEffect(() => { apiRef.current?.setLocale(locale); }, [locale]);
+  useEffect(() => {
+    apiRef.current?.setAccent(accent);
+  }, [accent]);
+  useEffect(() => {
+    apiRef.current?.setAutoRotate(autoRotate);
+  }, [autoRotate]);
+  useEffect(() => {
+    apiRef.current?.setLocale(locale);
+  }, [locale]);
 
-  const goLevel = useCallback((i: number) => { apiRef.current?.goLevel(i); }, []);
+  const goLevel = useCallback((i: number) => {
+    apiRef.current?.goLevel(i);
+  }, []);
   const select = useCallback((id: string | null, role: LStr | null = null) => {
     setSelection(id);
     setSelectionRole(role);
   }, []);
 
-  return { ready, error, level, selection, selectionRole, touring, goLevel, select, startTour, stopTour };
+  return {
+    ready,
+    error,
+    level,
+    selection,
+    selectionRole,
+    touring,
+    goLevel,
+    select,
+    startTour,
+    stopTour,
+  };
 }

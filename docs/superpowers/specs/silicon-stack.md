@@ -8,12 +8,12 @@
 Bilingual (繁體中文（台灣）default / EN toggle) monitor of the Taiwan-centered
 AI hardware supply chain. Three surfaces:
 
-| Route | What it is | Rendering |
-|---|---|---|
-| `/` | three.js 3D explorer: data-center rack → server → GPU package → 4 nm transistor, per-company panels (ported from a Claude Design project) | server page + client island |
-| `/supply-chain` | force-directed canvas graph: 202 TWSE/TPEx companies + 17 global anchors, 37 chain-segment hubs, membership/relation/flow edges, 1st/2nd-degree tracing, search, stage filter, `?focus=<companyId>` deep links | server page + client island |
-| `/market` | daily quote board for all 202 TW companies; sort/search via URL params (`?q=&sort=`); 紅漲綠跌 in zh, inverted in EN | server-rendered, toolbar island |
-| `/api/quotes` | normalized quote JSON for the islands | route handler, 5-min revalidate |
+| Route           | What it is                                                                                                                                                                                                     | Rendering                       |
+| --------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------- |
+| `/`             | three.js 3D explorer: data-center rack → server → GPU package → 4 nm transistor, per-company panels (ported from a Claude Design project)                                                                      | server page + client island     |
+| `/supply-chain` | force-directed canvas graph: 202 TWSE/TPEx companies + 17 global anchors, 37 chain-segment hubs, membership/relation/flow edges, 1st/2nd-degree tracing, search, stage filter, `?focus=<companyId>` deep links | server page + client island     |
+| `/market`       | daily quote board for all 202 TW companies; sort/search via URL params (`?q=&sort=`); 紅漲綠跌 in zh, inverted in EN                                                                                           | server-rendered, toolbar island |
+| `/api/quotes`   | normalized quote JSON for the islands                                                                                                                                                                          | route handler, 5-min revalidate |
 
 ## Architecture decisions (do not regress)
 

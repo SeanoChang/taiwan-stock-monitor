@@ -29,7 +29,7 @@ export function LocaleToggle({ locale, className }: { locale: Locale; className?
       onClick={onToggle}
       disabled={pending}
       aria-label={locale === 'zh' ? 'Switch to English' : '切換為繁體中文'}
-      className={`ss-veil rounded-full border-border text-xs font-semibold tracking-wider text-foreground/75 hover:text-foreground ${className ?? ''}`}
+      className={`ss-veil border-border text-foreground/75 hover:text-foreground rounded-full text-xs font-semibold tracking-wider ${className ?? ''}`}
     >
       {next === 'en' ? 'EN' : '繁中'}
     </Button>

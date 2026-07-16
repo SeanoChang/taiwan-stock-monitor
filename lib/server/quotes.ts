@@ -19,7 +19,7 @@ export interface Quote {
   change: number;
   changePct: number;
   volume: number; // board lots (張)
-  date: string;   // YYYY/MM/DD
+  date: string; // YYYY/MM/DD
   market: 'TWSE' | 'TPEx';
 }
 
@@ -63,12 +63,20 @@ function changePct(close: number, change: number): number {
 }
 
 interface TwseRow {
-  Date?: string; Code?: string; Name?: string;
-  ClosingPrice?: string; Change?: string; TradeVolume?: string;
+  Date?: string;
+  Code?: string;
+  Name?: string;
+  ClosingPrice?: string;
+  Change?: string;
+  TradeVolume?: string;
 }
 interface TpexRow {
-  Date?: string; SecuritiesCompanyCode?: string; CompanyName?: string;
-  Close?: string; Change?: string; TradingShares?: string;
+  Date?: string;
+  SecuritiesCompanyCode?: string;
+  CompanyName?: string;
+  Close?: string;
+  Change?: string;
+  TradingShares?: string;
 }
 
 async function fetchJson<T>(url: string): Promise<T | null> {

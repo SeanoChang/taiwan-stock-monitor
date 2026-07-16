@@ -7,10 +7,15 @@
 
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import type { RefObject } from 'react';
+import { forceCollide, forceLink, forceManyBody, forceSimulation, forceX, forceY } from 'd3-force';
 import {
-  forceCollide, forceLink, forceManyBody, forceSimulation, forceX, forceY,
-} from 'd3-force';
-import { ACCENT, INK, PALETTE, buildGraphModel, stageX, stageY } from '@/components/graph/graph-model';
+  ACCENT,
+  INK,
+  PALETTE,
+  buildGraphModel,
+  stageX,
+  stageY,
+} from '@/components/graph/graph-model';
 import type { GLink, GNode, GraphModel } from '@/components/graph/graph-model';
 import type { Locale } from '@/lib/i18n/config';
 
@@ -52,9 +57,10 @@ export function useForceGraph(
   const degree2 = useMemo(() => {
     const s = new Set<string>();
     if (!state.selection) return s;
-    for (const n of degree1) for (const nn of model.adjacency.get(n) ?? []) {
-      if (nn !== state.selection && !degree1.has(nn)) s.add(nn);
-    }
+    for (const n of degree1)
+      for (const nn of model.adjacency.get(n) ?? []) {
+        if (nn !== state.selection && !degree1.has(nn)) s.add(nn);
+      }
     return s;
   }, [state.selection, degree1, model]);
   const degRef = useRef({ d1: degree1, d2: degree2 });
@@ -67,15 +73,18 @@ export function useForceGraph(
     onPickRef.current = onPick;
   });
 
-  const centerOn = useCallback((id: string) => {
-    const node = model.nodes.find(n => n.id === id);
-    const canvas = canvasRef.current;
-    if (!node || !canvas) return;
-    const v = view.current;
-    v.k = Math.max(v.k, 1.1);
-    v.tx = canvas.clientWidth / 2 - node.x * v.k;
-    v.ty = canvas.clientHeight / 2 - node.y * v.k;
-  }, [model, canvasRef]);
+  const centerOn = useCallback(
+    (id: string) => {
+      const node = model.nodes.find((n) => n.id === id);
+      const canvas = canvasRef.current;
+      if (!node || !canvas) return;
+      const v = view.current;
+      v.k = Math.max(v.k, 1.1);
+      v.tx = canvas.clientWidth / 2 - node.x * v.k;
+      v.ty = canvas.clientHeight / 2 - node.y * v.k;
+    },
+    [model, canvasRef],
+  );
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -85,14 +94,28 @@ export function useForceGraph(
     const { nodes, links } = model;
 
     const simulation = forceSimulation<GNode>(nodes)
-      .force('link', forceLink<GNode, GLink & { index?: number }>(links as (GLink & { index?: number })[])
-        .id(d => d.id)
-        .distance(lk => (lk.kind === 'member' ? 46 : lk.kind === 'rel' ? 120 : 210))
-        .strength(lk => (lk.kind === 'member' ? 0.65 : lk.kind === 'rel' ? 0.05 : 0.04)))
-      .force('charge', forceManyBody<GNode>().strength(d => (d.kind === 'hub' ? -520 : -95)).distanceMax(520))
-      .force('x', forceX<GNode>(d => stageX(d.stage)).strength(d => (d.kind === 'hub' ? 0.2 : 0.055)))
-      .force('y', forceY<GNode>(d => stageY(d.stage)).strength(d => (d.kind === 'hub' ? 0.18 : 0.05)))
-      .force('collide', forceCollide<GNode>(d => d.r + 3.5).iterations(2))
+      .force(
+        'link',
+        forceLink<GNode, GLink & { index?: number }>(links as (GLink & { index?: number })[])
+          .id((d) => d.id)
+          .distance((lk) => (lk.kind === 'member' ? 46 : lk.kind === 'rel' ? 120 : 210))
+          .strength((lk) => (lk.kind === 'member' ? 0.65 : lk.kind === 'rel' ? 0.05 : 0.04)),
+      )
+      .force(
+        'charge',
+        forceManyBody<GNode>()
+          .strength((d) => (d.kind === 'hub' ? -520 : -95))
+          .distanceMax(520),
+      )
+      .force(
+        'x',
+        forceX<GNode>((d) => stageX(d.stage)).strength((d) => (d.kind === 'hub' ? 0.2 : 0.055)),
+      )
+      .force(
+        'y',
+        forceY<GNode>((d) => stageY(d.stage)).strength((d) => (d.kind === 'hub' ? 0.18 : 0.05)),
+      )
+      .force('collide', forceCollide<GNode>((d) => d.r + 3.5).iterations(2))
       .stop();
     for (let i = 0; i < PRERUN_TICKS; i++) simulation.tick();
 
@@ -103,14 +126,24 @@ export function useForceGraph(
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     };
     const fit = () => {
-      const w = canvas.clientWidth, h = canvas.clientHeight;
-      let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+      const w = canvas.clientWidth,
+        h = canvas.clientHeight;
+      let minX = Infinity,
+        maxX = -Infinity,
+        minY = Infinity,
+        maxY = -Infinity;
       for (const n of nodes) {
-        minX = Math.min(minX, n.x); maxX = Math.max(maxX, n.x);
-        minY = Math.min(minY, n.y); maxY = Math.max(maxY, n.y);
+        minX = Math.min(minX, n.x);
+        maxX = Math.max(maxX, n.x);
+        minY = Math.min(minY, n.y);
+        maxY = Math.max(maxY, n.y);
       }
       const k = Math.min(w / (maxX - minX + 260), h / (maxY - minY + 260));
-      view.current = { k, tx: w / 2 - k * (minX + maxX) / 2, ty: h / 2 - k * (minY + maxY) / 2 + 24 };
+      view.current = {
+        k,
+        tx: w / 2 - (k * (minX + maxX)) / 2,
+        ty: h / 2 - (k * (minY + maxY)) / 2 + 24,
+      };
     };
     resize();
     fit();
@@ -134,7 +167,8 @@ export function useForceGraph(
     const draw = () => {
       raf = requestAnimationFrame(draw);
       const { k, tx, ty } = view.current;
-      const w = canvas.clientWidth, h = canvas.clientHeight;
+      const w = canvas.clientWidth,
+        h = canvas.clientHeight;
       const { selection, matches, groupFilter } = stateRef.current;
       const loc = localeRef.current;
       ctx.clearRect(0, 0, w, h);
@@ -142,17 +176,32 @@ export function useForceGraph(
       // edges: base pass, then selection-touching pass on top
       for (const pass of ['base', 'hi'] as const) {
         for (const link of links) {
-          const a = link.source as GNode, b = link.target as GNode;
+          const a = link.source as GNode,
+            b = link.target as GNode;
           const touchesSel = selection !== null && (a.id === selection || b.id === selection);
           if ((pass === 'hi') !== touchesSel) continue;
-          const x1 = a.x * k + tx, y1 = a.y * k + ty, x2 = b.x * k + tx, y2 = b.y * k + ty;
-          if (Math.max(x1, x2) < -50 || Math.min(x1, x2) > w + 50 || Math.max(y1, y2) < -50 || Math.min(y1, y2) > h + 50) continue;
+          const x1 = a.x * k + tx,
+            y1 = a.y * k + ty,
+            x2 = b.x * k + tx,
+            y2 = b.y * k + ty;
+          if (
+            Math.max(x1, x2) < -50 ||
+            Math.min(x1, x2) > w + 50 ||
+            Math.max(y1, y2) < -50 ||
+            Math.min(y1, y2) > h + 50
+          )
+            continue;
           let stroke = 'rgba(238,244,251,0.10)';
           let width = Math.max(0.5, 0.8 * k);
           if (link.kind === 'member') stroke = 'rgba(238,244,251,0.055)';
-          if (link.kind === 'feed') { stroke = 'rgba(255,183,3,0.12)'; width = Math.max(0.7, 1.1 * k); }
-          if (touchesSel) { stroke = 'rgba(255,183,3,0.8)'; width = Math.max(1.2, 1.4 * k); }
-          else if (selection || matches || groupFilter !== null) {
+          if (link.kind === 'feed') {
+            stroke = 'rgba(255,183,3,0.12)';
+            width = Math.max(0.7, 1.1 * k);
+          }
+          if (touchesSel) {
+            stroke = 'rgba(255,183,3,0.8)';
+            width = Math.max(1.2, 1.4 * k);
+          } else if (selection || matches || groupFilter !== null) {
             if (Math.min(alphaOf(a), alphaOf(b)) < 0.5) {
               stroke = link.kind === 'feed' ? 'rgba(255,183,3,0.04)' : 'rgba(238,244,251,0.028)';
             }
@@ -160,7 +209,8 @@ export function useForceGraph(
           ctx.strokeStyle = stroke;
           ctx.lineWidth = width;
           ctx.beginPath();
-          const mx = (x1 + x2) / 2, my = (y1 + y2) / 2 - Math.min(40 * k, Math.hypot(x2 - x1, y2 - y1) * 0.08);
+          const mx = (x1 + x2) / 2,
+            my = (y1 + y2) / 2 - Math.min(40 * k, Math.hypot(x2 - x1, y2 - y1) * 0.08);
           ctx.moveTo(x1, y1);
           ctx.quadraticCurveTo(mx, my, x2, y2);
           ctx.stroke();
@@ -169,7 +219,8 @@ export function useForceGraph(
 
       // nodes
       for (const n of nodes) {
-        const x = n.x * k + tx, y = n.y * k + ty;
+        const x = n.x * k + tx,
+          y = n.y * k + ty;
         const r = Math.max(2.2, n.r * k);
         if (x < -30 || x > w + 30 || y < -30 || y > h + 30) continue;
         const alpha = alphaOf(n);
@@ -216,11 +267,15 @@ export function useForceGraph(
       // labels (screen-space for crispness)
       ctx.textBaseline = 'middle';
       for (const n of nodes) {
-        const x = n.x * k + tx, y = n.y * k + ty;
+        const x = n.x * k + tx,
+          y = n.y * k + ty;
         if (x < -160 || x > w + 160 || y < -40 || y > h + 40) continue;
         const alpha = alphaOf(n);
-        const highlighted = n.id === selection || hover.current?.id === n.id
-          || (selection !== null && degRef.current.d1.has(n.id)) || (matches?.has(n.id) ?? false);
+        const highlighted =
+          n.id === selection ||
+          hover.current?.id === n.id ||
+          (selection !== null && degRef.current.d1.has(n.id)) ||
+          (matches?.has(n.id) ?? false);
         const label = loc === 'zh' ? n.nameZh : n.nameEn;
         const lx = x + Math.max(2.2, n.r * k) + (n.kind === 'hub' ? 5 : 4);
         if (n.kind === 'hub') {
@@ -252,7 +307,8 @@ export function useForceGraph(
     let dragNode: GNode | null = null;
     let panning = false;
     let moved = 0;
-    let lastX = 0, lastY = 0;
+    let lastX = 0,
+      lastY = 0;
 
     const toWorld = (mx: number, my: number) => {
       const { k, tx, ty } = view.current;
@@ -265,7 +321,10 @@ export function useForceGraph(
       let bestDist = Infinity;
       for (const n of nodes) {
         const d = Math.hypot(n.x - p.x, n.y - p.y);
-        if (d < Math.max(n.r + 3, 9 / k) && d < bestDist) { best = n; bestDist = d; }
+        if (d < Math.max(n.r + 3, 9 / k) && d < bestDist) {
+          best = n;
+          bestDist = d;
+        }
       }
       return best;
     };
@@ -277,11 +336,14 @@ export function useForceGraph(
     const onPointerDown = (e: PointerEvent) => {
       const { mx, my } = eventPos(e);
       canvas.setPointerCapture(e.pointerId);
-      moved = 0; lastX = mx; lastY = my;
+      moved = 0;
+      lastX = mx;
+      lastY = my;
       const n = findNode(mx, my);
       if (n) {
         dragNode = n;
-        n.fx = n.x; n.fy = n.y;
+        n.fx = n.x;
+        n.fy = n.y;
         simulation.alphaTarget(0.25).restart();
       } else {
         panning = true;
@@ -289,23 +351,28 @@ export function useForceGraph(
     };
     const onPointerMove = (e: PointerEvent) => {
       const { mx, my } = eventPos(e);
-      const dx = mx - lastX, dy = my - lastY;
+      const dx = mx - lastX,
+        dy = my - lastY;
       if (dragNode || panning) moved += Math.abs(dx) + Math.abs(dy);
       if (dragNode) {
         const p = toWorld(mx, my);
-        dragNode.fx = p.x; dragNode.fy = p.y;
+        dragNode.fx = p.x;
+        dragNode.fy = p.y;
       } else if (panning) {
-        view.current.tx += dx; view.current.ty += dy;
+        view.current.tx += dx;
+        view.current.ty += dy;
       } else {
         hover.current = findNode(mx, my);
         canvas.style.cursor = hover.current ? 'pointer' : 'grab';
       }
-      lastX = mx; lastY = my;
+      lastX = mx;
+      lastY = my;
     };
     const onPointerUp = (e: PointerEvent) => {
       const { mx, my } = eventPos(e);
       if (dragNode) {
-        dragNode.fx = null; dragNode.fy = null;
+        dragNode.fx = null;
+        dragNode.fy = null;
         simulation.alphaTarget(0);
       }
       if (moved < 5) onPickRef.current(findNode(mx, my)?.id ?? null);
@@ -315,9 +382,13 @@ export function useForceGraph(
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
       const rect = canvas.getBoundingClientRect();
-      const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+      const mx = e.clientX - rect.left,
+        my = e.clientY - rect.top;
       const v = view.current;
-      const nk = Math.min(ZOOM_RANGE[1], Math.max(ZOOM_RANGE[0], v.k * Math.exp(-e.deltaY * 0.0012)));
+      const nk = Math.min(
+        ZOOM_RANGE[1],
+        Math.max(ZOOM_RANGE[0], v.k * Math.exp(-e.deltaY * 0.0012)),
+      );
       v.tx = mx - (mx - v.tx) * (nk / v.k);
       v.ty = my - (my - v.ty) * (nk / v.k);
       v.k = nk;

@@ -12,12 +12,30 @@ export const INK = '#eef4fb';
 
 /** stage → color group (materials+wafer share a slot; anchors are neutral) */
 export const STAGE_GROUP: Record<StageId, number> = {
-  materials: 0, wafer: 0, fabsupport: 1, chip: 2, package: 3,
-  board: 4, subsystem: 5, system: 6, cloud: 7, anchor: 8,
+  materials: 0,
+  wafer: 0,
+  fabsupport: 1,
+  chip: 2,
+  package: 3,
+  board: 4,
+  subsystem: 5,
+  system: 6,
+  cloud: 7,
+  anchor: 8,
 };
 
 /** 8 chromatic slots validated (CVD + contrast) against #0d1b2a, + neutral */
-export const PALETTE = ['#3987e5', '#008300', '#d55181', '#c98500', '#199e70', '#d95926', '#9085e9', '#e66767', '#8a94a0'];
+export const PALETTE = [
+  '#3987e5',
+  '#008300',
+  '#d55181',
+  '#c98500',
+  '#199e70',
+  '#d95926',
+  '#9085e9',
+  '#e66767',
+  '#8a94a0',
+];
 
 export const GROUP_LABELS: LStr[] = [
   l('Materials & Wafers', '材料／晶圓'),
@@ -33,9 +51,20 @@ export const GROUP_LABELS: LStr[] = [
 
 // simulation world
 export const WORLD = { w: 2600, h: 1500 };
-const STAGE_ORDER: StageId[] = ['materials', 'fabsupport', 'wafer', 'chip', 'package', 'board', 'subsystem', 'system', 'cloud'];
+const STAGE_ORDER: StageId[] = [
+  'materials',
+  'fabsupport',
+  'wafer',
+  'chip',
+  'package',
+  'board',
+  'subsystem',
+  'system',
+  'cloud',
+];
 
-export const stageX = (s: StageId) => (s === 'anchor' ? 1350 : 170 + STAGE_ORDER.indexOf(s) * (2260 / 8));
+export const stageX = (s: StageId) =>
+  s === 'anchor' ? 1350 : 170 + STAGE_ORDER.indexOf(s) * (2260 / 8);
 export const stageY = (s: StageId) => (s === 'anchor' ? 190 : WORLD.h / 2 + 60);
 
 export interface GNode {
@@ -48,9 +77,12 @@ export interface GNode {
   nameZh: string;
   ticker?: string;
   tw: boolean;
-  x: number; y: number;
-  vx?: number; vy?: number;
-  fx?: number | null; fy?: number | null;
+  x: number;
+  y: number;
+  vx?: number;
+  vy?: number;
+  fx?: number | null;
+  fy?: number | null;
   index?: number;
 }
 
@@ -71,13 +103,20 @@ export const isHubId = (id: string) => id.startsWith('cat:');
 
 export function buildGraphModel(): GraphModel {
   const inboundCount = new Map<string, number>();
-  for (const c of COMPANIES) for (const r of c.rel ?? []) inboundCount.set(r.to, (inboundCount.get(r.to) ?? 0) + 1);
+  for (const c of COMPANIES)
+    for (const r of c.rel ?? []) inboundCount.set(r.to, (inboundCount.get(r.to) ?? 0) + 1);
 
   const nodes: GNode[] = [];
   for (const cat of CATEGORIES) {
     nodes.push({
-      id: hubId(cat.id), kind: 'hub', stage: cat.stage, group: STAGE_GROUP[cat.stage],
-      r: 13, nameEn: cat.name, nameZh: cat.zh, tw: cat.stage !== 'anchor',
+      id: hubId(cat.id),
+      kind: 'hub',
+      stage: cat.stage,
+      group: STAGE_GROUP[cat.stage],
+      r: 13,
+      nameEn: cat.name,
+      nameZh: cat.zh,
+      tw: cat.stage !== 'anchor',
       x: stageX(cat.stage) + (Math.random() - 0.5) * 220,
       y: stageY(cat.stage) + (Math.random() - 0.5) * 420,
     });
@@ -86,9 +125,14 @@ export function buildGraphModel(): GraphModel {
     const degree = (c.rel?.length ?? 0) + (inboundCount.get(c.id) ?? 0);
     const stage = CATEGORY_MAP[c.cat].stage;
     nodes.push({
-      id: c.id, kind: 'company', stage, group: STAGE_GROUP[stage],
+      id: c.id,
+      kind: 'company',
+      stage,
+      group: STAGE_GROUP[stage],
       r: Math.min(11, 4.5 + degree * 0.55),
-      nameEn: c.name, nameZh: c.zh ?? c.name, ticker: c.ticker,
+      nameEn: c.name,
+      nameZh: c.zh ?? c.name,
+      ticker: c.ticker,
       tw: c.exch === 'TWSE' || c.exch === 'TPEx',
       x: stageX(stage) + (Math.random() - 0.5) * 260,
       y: stageY(stage) + (Math.random() - 0.5) * 520,
@@ -100,9 +144,10 @@ export function buildGraphModel(): GraphModel {
     links.push({ kind: 'member', source: c.id, target: hubId(c.cat) });
     for (const r of c.rel ?? []) links.push({ kind: 'rel', source: c.id, target: r.to });
   }
-  for (const cat of CATEGORIES) for (const f of cat.feeds) {
-    links.push({ kind: 'feed', source: hubId(cat.id), target: hubId(f) });
-  }
+  for (const cat of CATEGORIES)
+    for (const f of cat.feeds) {
+      links.push({ kind: 'feed', source: hubId(cat.id), target: hubId(f) });
+    }
 
   const adjacency = new Map<string, Set<string>>();
   const connect = (a: string, b: string) => {
@@ -126,11 +171,15 @@ export function searchIds(query: string): Set<string> {
   for (const c of COMPANIES) {
     const cat = CATEGORY_MAP[c.cat];
     if (
-      c.name.toLowerCase().includes(q) || (c.zh ?? '').includes(zhq) ||
+      c.name.toLowerCase().includes(q) ||
+      (c.zh ?? '').includes(zhq) ||
       c.ticker.toLowerCase().includes(q) ||
-      c.role.en.toLowerCase().includes(q) || c.role.zh.includes(zhq) ||
-      cat.name.toLowerCase().includes(q) || cat.zh.includes(zhq)
-    ) out.add(c.id);
+      c.role.en.toLowerCase().includes(q) ||
+      c.role.zh.includes(zhq) ||
+      cat.name.toLowerCase().includes(q) ||
+      cat.zh.includes(zhq)
+    )
+      out.add(c.id);
   }
   for (const cat of CATEGORIES) {
     if (cat.name.toLowerCase().includes(q) || cat.zh.includes(zhq)) out.add(hubId(cat.id));

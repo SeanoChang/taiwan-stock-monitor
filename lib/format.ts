@@ -15,7 +15,7 @@ export function upDownColor(chg: number, locale: Locale): string {
   if (!chg) return 'rgba(238,244,251,0.55)';
   const red = '#ff8585';
   const green = '#5ad19a';
-  return (chg > 0) === (locale === 'zh') ? red : green;
+  return chg > 0 === (locale === 'zh') ? red : green;
 }
 
 export function fmtChange(chg: number, pct: number): string {
