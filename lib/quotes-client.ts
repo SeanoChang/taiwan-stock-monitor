@@ -3,6 +3,10 @@
 // Client-side quote access for the interactive islands (graph & explorer
 // panels). One module-level cache shared across islands; refreshes on the
 // same cadence as the server cache.
+//
+// Prefer seeding `useQuotes(initial)` with the payload the page already
+// fetched on the server (`getQuotes()`): the islands then render quotes on
+// first paint and only hit /api/quotes to refresh after the TTL.
 
 import { useEffect, useState } from 'react';
 
@@ -46,7 +50,18 @@ async function load(): Promise<ClientQuotesPayload> {
   return inflight;
 }
 
-export function useQuotes(): ClientQuotesPayload | null {
+/** Prime the shared cache with a server-rendered payload. */
+export function seedQuotes(payload: ClientQuotesPayload): void {
+  cached = payload;
+  fetchedAt = Date.now();
+}
+
+/**
+ * Latest quotes for the islands. Pass `initial` (the server's `getQuotes()`
+ * payload) to render from the server data and skip the fetch on mount.
+ */
+export function useQuotes(initial?: ClientQuotesPayload | null): ClientQuotesPayload | null {
+  if (initial && cached === null) seedQuotes(initial);
   const [payload, setPayload] = useState<ClientQuotesPayload | null>(cached);
   useEffect(() => {
     let alive = true;

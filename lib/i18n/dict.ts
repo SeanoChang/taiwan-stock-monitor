@@ -84,6 +84,7 @@ export const UI = {
   sortVolume: l('Volume', '成交量'),
   sortCode: l('Code', '代號'),
   searchMarket: l('Search code / name / segment…', '搜尋代號 / 名稱 / 節點…'),
+  searchAction: l('Search', '搜尋'),
   viewInGraph: l('View in graph', '在圖譜中檢視'),
   source: l(
     'Source: TWSE / TPEx OpenAPI · updated ~5 min cache',

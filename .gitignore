@@ -42,3 +42,6 @@ next-env.d.ts
 
 # claude code generated context
 /.claude/codebase-map.md
+
+# playwright mcp artifacts
+/.playwright-mcp/

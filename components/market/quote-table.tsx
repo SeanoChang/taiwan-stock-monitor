@@ -12,16 +12,12 @@ import {
 } from '@/components/ui/table';
 import { PALETTE, STAGE_GROUP } from '@/components/graph/graph-model';
 import { CATEGORY_MAP } from '@/lib/data/supply-chain';
-import type { SCCompany } from '@/lib/data/supply-chain';
 import { fmtPct, fmtSigned, upDownColor } from '@/lib/format';
 import type { Locale } from '@/lib/i18n/config';
 import { t } from '@/lib/i18n/dict';
-import type { Quote } from '@/lib/server/quotes';
+import type { MarketRow } from '@/components/market/market-rows';
 
-export interface MarketRow {
-  company: SCCompany;
-  quote: Quote | null;
-}
+export type { MarketRow };
 
 export function QuoteTable({ rows, locale }: { rows: MarketRow[]; locale: Locale }) {
   return (

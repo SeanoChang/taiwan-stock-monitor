@@ -1,37 +1,30 @@
-'use client';
-
-import { useTransition } from 'react';
-import { useRouter } from 'next/navigation';
-import { Button } from '@/components/ui/button';
-import { LOCALE_COOKIE } from '@/lib/i18n/config';
+import { cn } from '@/lib/utils';
+import { buttonVariants } from '@/components/ui/button';
+import { setLocale } from '@/lib/i18n/actions';
 import type { Locale } from '@/lib/i18n/config';
 
-const YEAR = 60 * 60 * 24 * 365;
-
 /**
- * Locale switcher island. Persists the choice as a cookie and refreshes the
- * route so server components re-render in the selected language.
+ * Locale switcher. A server function sets the cookie and the route re-renders
+ * in the chosen language, so this needs no client JS of its own — and it stays
+ * renderable from both the server board and the client explorer/graph chrome.
  */
 export function LocaleToggle({ locale, className }: { locale: Locale; className?: string }) {
-  const router = useRouter();
-  const [pending, startTransition] = useTransition();
   const next: Locale = locale === 'zh' ? 'en' : 'zh';
 
-  const onToggle = () => {
-    document.cookie = `${LOCALE_COOKIE}=${next}; path=/; max-age=${YEAR}; samesite=lax`;
-    startTransition(() => router.refresh());
-  };
-
   return (
-    <Button
-      variant="outline"
-      size="sm"
-      onClick={onToggle}
-      disabled={pending}
-      aria-label={locale === 'zh' ? 'Switch to English' : '切換為繁體中文'}
-      className={`ss-veil border-border text-foreground/75 hover:text-foreground rounded-full text-xs font-semibold tracking-wider ${className ?? ''}`}
-    >
-      {next === 'en' ? 'EN' : '繁中'}
-    </Button>
+    <form action={setLocale} className="contents">
+      <input type="hidden" name="locale" value={next} />
+      <button
+        type="submit"
+        aria-label={locale === 'zh' ? 'Switch to English' : '切換為繁體中文'}
+        className={cn(
+          buttonVariants({ variant: 'outline', size: 'sm' }),
+          'ss-veil border-border text-foreground/75 hover:text-foreground rounded-full text-xs font-semibold tracking-wider',
+          className,
+        )}
+      >
+        {next === 'en' ? 'EN' : '繁中'}
+      </button>
+    </form>
   );
 }

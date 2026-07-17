@@ -1,37 +1,92 @@
 'use client';
 
-// Interactive island for /supply-chain: force-directed network of the whole
-// Taiwan × AI chain. Header, legend filter, search, canvas engine and the
-// node detail panel.
+// Interactive island for /supply-chain: search, legend filter, layout toggle,
+// the canvas engine and the node detail panel. The static chrome (brand, counts,
+// nav, disclaimer, hint) is server-rendered and handed in as slots.
 
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { Badge } from '@/components/ui/badge';
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import type { ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Brand } from '@/components/site/brand';
-import { LocaleToggle } from '@/components/site/locale-toggle';
-import { NavLinks } from '@/components/site/nav-links';
 import { GROUP_LABELS, PALETTE, searchIds } from '@/components/graph/graph-model';
 import { NodePanel } from '@/components/graph/node-panel';
 import { useForceGraph } from '@/components/graph/use-force-graph';
-import { CATEGORIES, TOTAL_COUNT, TW_COUNT } from '@/lib/data/supply-chain';
-import { pick } from '@/lib/i18n/config';
-import type { Locale } from '@/lib/i18n/config';
+import type { LayoutMode } from '@/components/graph/use-force-graph';
+import { l, pick } from '@/lib/i18n/config';
+import type { LStr, Locale } from '@/lib/i18n/config';
 import { t } from '@/lib/i18n/dict';
 import { cn } from '@/lib/utils';
 
-export function SupplyChainGraph({ locale, focus }: { locale: Locale; focus?: string }) {
+const LAYOUT_KEY = 'supply-chain:layout';
+const LAYOUT_MODES: LayoutMode[] = ['free', 'chain'];
+// candidates for lib/i18n/dict.ts once that file is free to edit
+const LAYOUT_GROUP: LStr = l('Layout', '版面');
+const LAYOUT_LABELS: Record<LayoutMode, LStr> = {
+  free: l('Constellation', '星圖'),
+  chain: l('Chain', '鏈狀'),
+};
+
+/** the persisted layout choice, read as an external store so the server render
+ *  can fall back to 'free' without a hydration mismatch */
+const layoutStore = (() => {
+  const listeners = new Set<() => void>();
+  let cache: LayoutMode | null = null;
+  return {
+    subscribe(cb: () => void) {
+      listeners.add(cb);
+      return () => {
+        listeners.delete(cb);
+      };
+    },
+    get(): LayoutMode {
+      if (cache === null) {
+        const saved = window.localStorage.getItem(LAYOUT_KEY);
+        cache = saved === 'free' || saved === 'chain' ? saved : 'free';
+      }
+      return cache;
+    },
+    getServer: (): LayoutMode => 'free',
+    set(mode: LayoutMode) {
+      cache = mode;
+      window.localStorage.setItem(LAYOUT_KEY, mode);
+      for (const cb of listeners) cb();
+    },
+  };
+})();
+
+interface SupplyChainGraphProps {
+  locale: Locale;
+  focus?: string;
+  /** server-rendered: brand lockup, title badge and the node counts */
+  brand: ReactNode;
+  /** server-rendered: locale toggle, nav and the disclaimer badge */
+  tools: ReactNode;
+  /** server-rendered: the usage hint pinned bottom-left */
+  hint: ReactNode;
+}
+
+export function SupplyChainGraph({ locale, focus, brand, tools, hint }: SupplyChainGraphProps) {
   const [selection, setSelection] = useState<string | null>(focus ?? null);
   const [query, setQuery] = useState('');
   const [groupFilter, setGroupFilter] = useState<number | null>(null);
+  const layout = useSyncExternalStore(
+    layoutStore.subscribe,
+    layoutStore.get,
+    layoutStore.getServer,
+  );
 
   const matches = useMemo(() => (query.trim() ? searchIds(query) : null), [query]);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const graph = useForceGraph(canvasRef, locale, { selection, matches, groupFilter }, (id) => {
-    setSelection(id);
-    setQuery('');
-  });
+  const graph = useForceGraph(
+    canvasRef,
+    locale,
+    { selection, matches, groupFilter, layout },
+    (id) => {
+      setSelection(id);
+      setQuery('');
+    },
+  );
 
   // deep link: /supply-chain?focus=<companyId>
   useEffect(() => {
@@ -57,19 +112,7 @@ export function SupplyChainGraph({ locale, focus }: { locale: Locale; focus?: st
       {/* header overlay */}
       <header className="pointer-events-none absolute inset-x-0 top-0 z-10 px-6 pt-4">
         <div className="flex flex-wrap items-center gap-3">
-          <div className="pointer-events-auto flex items-center gap-3">
-            <Brand locale={locale} />
-            <Badge
-              variant="outline"
-              className="border-primary/40 text-primary rounded-full text-xs font-semibold"
-            >
-              {t('graphTitle', locale)}
-            </Badge>
-          </div>
-          <p className="text-foreground/55 text-[11px]">
-            {TW_COUNT} {t('graphCounts', locale)} · {TOTAL_COUNT} {t('nodes', locale)} ·{' '}
-            {CATEGORIES.length} {t('segments', locale)}
-          </p>
+          {brand}
           <Input
             value={query}
             onChange={(e) => {
@@ -85,16 +128,7 @@ export function SupplyChainGraph({ locale, focus }: { locale: Locale; focus?: st
               {matches.size} {t('matches', locale)}
             </span>
           )}
-          <div className="pointer-events-auto ml-auto flex items-center gap-2">
-            <LocaleToggle locale={locale} />
-            <NavLinks locale={locale} current="/supply-chain" />
-            <Badge
-              variant="outline"
-              className="border-border text-foreground/45 rounded-full px-2.5 py-1 text-[10px] font-normal"
-            >
-              {t('notAdvice', locale)}
-            </Badge>
-          </div>
+          {tools}
         </div>
 
         {/* legend / stage filter */}
@@ -130,12 +164,31 @@ export function SupplyChainGraph({ locale, focus }: { locale: Locale; focus?: st
               ✕ {t('clearFilter', locale)}
             </Button>
           )}
+          <div
+            role="group"
+            aria-label={pick(LAYOUT_GROUP, locale)}
+            className="border-border bg-secondary ml-auto flex items-center gap-0.5 rounded-full border p-0.5"
+          >
+            {LAYOUT_MODES.map((mode) => (
+              <button
+                key={mode}
+                onClick={() => layoutStore.set(mode)}
+                aria-pressed={layout === mode}
+                className={cn(
+                  'rounded-full px-2.5 py-1 text-[11.5px] font-semibold transition-colors',
+                  layout === mode
+                    ? 'bg-primary/15 text-foreground'
+                    : 'text-foreground/55 hover:text-foreground',
+                )}
+              >
+                {pick(LAYOUT_LABELS[mode], locale)}
+              </button>
+            ))}
+          </div>
         </div>
       </header>
 
-      <p className="text-foreground/45 pointer-events-none absolute bottom-5 left-6 z-10 max-w-[520px] text-[11.5px] leading-relaxed">
-        {t('graphHint', locale)}
-      </p>
+      {hint}
 
       {selection && (
         <NodePanel

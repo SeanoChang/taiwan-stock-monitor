@@ -4,12 +4,11 @@ import { Brand } from '@/components/site/brand';
 import { LocaleToggle } from '@/components/site/locale-toggle';
 import { NavLinks } from '@/components/site/nav-links';
 import { MarketToolbar } from '@/components/market/market-toolbar';
-import { isMarketSort } from '@/components/market/market-sort';
+import { DEFAULT_MARKET_SORT, isMarketSort } from '@/components/market/market-sort';
 import type { MarketSort } from '@/components/market/market-sort';
+import { buildMarketBoard } from '@/components/market/market-rows';
 import { QuoteTable } from '@/components/market/quote-table';
-import type { MarketRow } from '@/components/market/quote-table';
-import { CATEGORY_MAP, COMPANIES } from '@/lib/data/supply-chain';
-import { normalizeCode, upDownColor } from '@/lib/format';
+import { upDownColor } from '@/lib/format';
 import { getLocale } from '@/lib/i18n/server';
 import { t } from '@/lib/i18n/dict';
 import { getQuotes } from '@/lib/server/quotes';
@@ -27,41 +26,8 @@ interface PageProps {
 export default async function MarketPage({ searchParams }: PageProps) {
   const [locale, params, payload] = await Promise.all([getLocale(), searchParams, getQuotes()]);
   const query = (params.q ?? '').trim();
-  const sort: MarketSort = isMarketSort(params.sort) ? params.sort : 'pctDesc';
-
-  const zhq = query;
-  const q = query.toLowerCase();
-  const rows: MarketRow[] = COMPANIES.filter((c) => c.exch === 'TWSE' || c.exch === 'TPEx')
-    .filter((c) => {
-      if (!q) return true;
-      const cat = CATEGORY_MAP[c.cat];
-      return (
-        c.name.toLowerCase().includes(q) ||
-        (c.zh ?? '').includes(zhq) ||
-        c.ticker.includes(q) ||
-        cat.name.toLowerCase().includes(q) ||
-        cat.zh.includes(zhq)
-      );
-    })
-    .map((c) => ({ company: c, quote: payload.quotes[normalizeCode(c.ticker)] ?? null }));
-
-  rows.sort((a, b) => {
-    switch (sort) {
-      case 'pctDesc':
-        return (b.quote?.changePct ?? -Infinity) - (a.quote?.changePct ?? -Infinity);
-      case 'pctAsc':
-        return (a.quote?.changePct ?? Infinity) - (b.quote?.changePct ?? Infinity);
-      case 'volume':
-        return (b.quote?.volume ?? -1) - (a.quote?.volume ?? -1);
-      case 'code':
-        return a.company.ticker.localeCompare(b.company.ticker);
-    }
-  });
-
-  const quoted = rows.filter((r) => r.quote);
-  const advancers = quoted.filter((r) => r.quote!.change > 0).length;
-  const decliners = quoted.filter((r) => r.quote!.change < 0).length;
-  const unchanged = quoted.length - advancers - decliners;
+  const sort: MarketSort = isMarketSort(params.sort) ? params.sort : DEFAULT_MARKET_SORT;
+  const { rows, advancers, decliners, unchanged } = buildMarketBoard(payload, query, sort);
 
   return (
     <div className="bg-background text-foreground min-h-screen">
@@ -117,7 +83,7 @@ export default async function MarketPage({ searchParams }: PageProps) {
         </section>
 
         <section aria-label="controls" className="mb-4">
-          <MarketToolbar locale={locale} initialQuery={query} initialSort={sort} />
+          <MarketToolbar locale={locale} query={query} sort={sort} />
         </section>
 
         <section aria-label="quotes" className="bg-card/50 overflow-x-auto rounded-xl border">

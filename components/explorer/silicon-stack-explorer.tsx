@@ -2,21 +2,36 @@
 
 // Interactive island for the home page: the Silicon Stack 3D explorer,
 // ported from the Claude Design project. Composition of the scene hook,
-// HUD chrome and the company detail panel.
+// HUD chrome and the company detail panel. The static chrome (brand, nav,
+// disclaimer badge) is server-rendered and handed in as slots.
 
 import { useRef } from 'react';
+import type { ReactNode } from 'react';
+import dynamic from 'next/dynamic';
 import {
   BootOverlay,
   ExplorerBottomBar,
   ExplorerHeader,
   TourCaption,
 } from '@/components/explorer/hud';
-import { CompanyPanel } from '@/components/explorer/company-panel';
 import { useScene } from '@/components/explorer/use-scene';
+import type { ExplorerCopy } from '@/components/explorer/explorer-copy';
 import type { Locale } from '@/lib/i18n/config';
+
+// Only mounts once a hotspot is picked, so it stays out of the initial bundle
+// along with the company dataset and the quotes client it pulls in.
+const CompanyPanel = dynamic(
+  () => import('@/components/explorer/company-panel').then((m) => m.CompanyPanel),
+  { ssr: false },
+);
 
 export interface SiliconStackExplorerProps {
   locale: Locale;
+  copy: ExplorerCopy;
+  /** server-rendered: brand lockup and tagline */
+  brand: ReactNode;
+  /** server-rendered: locale toggle, nav and the illustrative-data badge */
+  tools: ReactNode;
   accent?: string;
   autoRotate?: boolean;
   startLevel?: number;
@@ -24,6 +39,9 @@ export interface SiliconStackExplorerProps {
 
 export function SiliconStackExplorer({
   locale,
+  copy,
+  brand,
+  tools,
   accent,
   autoRotate,
   startLevel,
@@ -48,15 +66,18 @@ export function SiliconStackExplorer({
       />
 
       <ExplorerHeader
-        locale={locale}
+        copy={copy}
         ready={scene.ready}
         error={scene.error}
         touring={scene.touring}
         onStartTour={scene.startTour}
         onStopTour={scene.stopTour}
+        brand={brand}
+        tools={tools}
       />
       <ExplorerBottomBar
         locale={locale}
+        copy={copy}
         level={scene.level}
         ready={scene.ready}
         error={scene.error}
@@ -64,7 +85,7 @@ export function SiliconStackExplorer({
         onGoLevel={scene.goLevel}
       />
 
-      {scene.touring && <TourCaption locale={locale} level={scene.level} />}
+      {scene.touring && <TourCaption copy={copy} level={scene.level} />}
 
       {scene.selection && (
         <CompanyPanel
@@ -76,7 +97,7 @@ export function SiliconStackExplorer({
         />
       )}
 
-      <BootOverlay locale={locale} ready={scene.ready} error={scene.error} />
+      <BootOverlay copy={copy} ready={scene.ready} error={scene.error} />
     </div>
   );
 }

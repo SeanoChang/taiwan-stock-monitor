@@ -1,6 +1,6 @@
 // Pure graph model for the supply-chain network: node/link construction,
-// stage color groups (validated categorical palette for the navy surface)
-// and the simulation world constants. No React, safe anywhere.
+// stage color groups (validated categorical palette for the navy surface),
+// node sizing and the deterministic seed layout. No React, safe anywhere.
 
 import { CATEGORIES, CATEGORY_MAP, COMPANIES } from '@/lib/data/supply-chain';
 import type { StageId } from '@/lib/data/supply-chain';
@@ -49,8 +49,6 @@ export const GROUP_LABELS: LStr[] = [
   l('Global Anchors', '全球夥伴'),
 ];
 
-// simulation world
-export const WORLD = { w: 2600, h: 1500 };
 const STAGE_ORDER: StageId[] = [
   'materials',
   'fabsupport',
@@ -63,16 +61,21 @@ const STAGE_ORDER: StageId[] = [
   'cloud',
 ];
 
+/** stage lanes, centred on the world origin so both layout modes share (0,0) */
 export const stageX = (s: StageId) =>
-  s === 'anchor' ? 1350 : 170 + STAGE_ORDER.indexOf(s) * (2260 / 8);
-export const stageY = (s: StageId) => (s === 'anchor' ? 190 : WORLD.h / 2 + 60);
+  s === 'anchor' ? 0 : -1130 + STAGE_ORDER.indexOf(s) * (2260 / 8);
+export const stageY = (s: StageId) => (s === 'anchor' ? -620 : 0);
 
 export interface GNode {
   id: string;
   kind: 'company' | 'hub';
   stage: StageId;
   group: number;
+  /** link endpoints touching this node — d3 forceLink `count` semantics */
+  deg: number;
   r: number;
+  /** eased hover-dim level, 1 = undimmed */
+  fade: number;
   nameEn: string;
   nameZh: string;
   ticker?: string;
@@ -92,6 +95,13 @@ export interface GLink {
   target: GNode | string;
 }
 
+/** the highlight channels the renderer reads; owned by the graph surface */
+export interface HighlightState {
+  selection: string | null;
+  matches: Set<string> | null;
+  groupFilter: number | null;
+}
+
 export interface GraphModel {
   nodes: GNode[];
   links: GLink[];
@@ -101,11 +111,36 @@ export interface GraphModel {
 export const hubId = (catId: string) => `cat:${catId}`;
 export const isHubId = (id: string) => id.startsWith('cat:');
 
-export function buildGraphModel(): GraphModel {
-  const inboundCount = new Map<string, number>();
-  for (const c of COMPANIES)
-    for (const r of c.rel ?? []) inboundCount.set(r.to, (inboundCount.get(r.to) ?? 0) + 1);
+const SIZE_MULT: Record<GNode['kind'], number> = { hub: 1.35, company: 1 };
+const nodeRadius = (kind: GNode['kind'], deg: number) =>
+  SIZE_MULT[kind] * Math.max(8, Math.min(3 * Math.sqrt(deg + 1), 30));
 
+function mulberry32(a: number) {
+  return () => {
+    a |= 0;
+    a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/** seeded disk, uniform by area (~60×60 of room per node) — sqrt keeps nodes
+ *  from bunching at the centre, which is what makes the cold start explode */
+function seedPositions(nodes: GNode[]) {
+  const rand = mulberry32(0x5eed);
+  const seedR = Math.sqrt((3600 * nodes.length) / Math.PI);
+  for (const n of nodes) {
+    const a = 2 * Math.PI * rand();
+    const d = Math.sqrt(rand()) * seedR;
+    n.x = d * Math.cos(a);
+    n.y = d * Math.sin(a);
+    n.vx = 0;
+    n.vy = 0;
+  }
+}
+
+export function buildGraphModel(): GraphModel {
   const nodes: GNode[] = [];
   for (const cat of CATEGORIES) {
     nodes.push({
@@ -113,29 +148,32 @@ export function buildGraphModel(): GraphModel {
       kind: 'hub',
       stage: cat.stage,
       group: STAGE_GROUP[cat.stage],
-      r: 13,
+      deg: 0,
+      r: 0,
+      fade: 1,
       nameEn: cat.name,
       nameZh: cat.zh,
       tw: cat.stage !== 'anchor',
-      x: stageX(cat.stage) + (Math.random() - 0.5) * 220,
-      y: stageY(cat.stage) + (Math.random() - 0.5) * 420,
+      x: 0,
+      y: 0,
     });
   }
   for (const c of COMPANIES) {
-    const degree = (c.rel?.length ?? 0) + (inboundCount.get(c.id) ?? 0);
     const stage = CATEGORY_MAP[c.cat].stage;
     nodes.push({
       id: c.id,
       kind: 'company',
       stage,
       group: STAGE_GROUP[stage],
-      r: Math.min(11, 4.5 + degree * 0.55),
+      deg: 0,
+      r: 0,
+      fade: 1,
       nameEn: c.name,
       nameZh: c.zh ?? c.name,
       ticker: c.ticker,
       tw: c.exch === 'TWSE' || c.exch === 'TPEx',
-      x: stageX(stage) + (Math.random() - 0.5) * 260,
-      y: stageY(stage) + (Math.random() - 0.5) * 520,
+      x: 0,
+      y: 0,
     });
   }
 
@@ -149,6 +187,7 @@ export function buildGraphModel(): GraphModel {
       links.push({ kind: 'feed', source: hubId(cat.id), target: hubId(f) });
     }
 
+  const byId = new Map(nodes.map((n) => [n.id, n]));
   const adjacency = new Map<string, Set<string>>();
   const connect = (a: string, b: string) => {
     (adjacency.get(a) ?? adjacency.set(a, new Set()).get(a)!).add(b);
@@ -156,9 +195,16 @@ export function buildGraphModel(): GraphModel {
   for (const link of links) {
     const s = typeof link.source === 'string' ? link.source : link.source.id;
     const t = typeof link.target === 'string' ? link.target : link.target.id;
+    const sn = byId.get(s);
+    const tn = byId.get(t);
+    if (sn) sn.deg += 1;
+    if (tn) tn.deg += 1;
     connect(s, t);
     connect(t, s);
   }
+  for (const n of nodes) n.r = nodeRadius(n.kind, n.deg);
+  seedPositions(nodes);
+
   return { nodes, links, adjacency };
 }
 
