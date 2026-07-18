@@ -114,11 +114,19 @@ export function ScrollyStage({ wrapperRef, locale, accent, onHandoff }: ScrollyS
   return (
     <div
       className={cn(
-        'scrolly-stage bg-background relative h-svh w-full overflow-hidden',
-        // Reduced motion: no GSAP pin is ever created (see useScrollProgress),
-        // so this must not fake one with CSS sticky either — the stage stays
-        // in normal document flow and scrolls away like any other section.
-        !reducedMotion && 'sticky top-0',
+        // `sticky top-0` keeps the stage visually pinned to the viewport for
+        // the whole ~800vh scroll span regardless of motion preference. That
+        // is not the scroll-jacking prefers-reduced-motion guards against —
+        // no GSAP ScrollTrigger pin/scrub ever runs under reduced motion (see
+        // useScrollProgress); the browser scrolls this page at its own
+        // uncontrolled, native 1:1 speed either way, only the progress
+        // *source* differs. Making this conditional on `!reducedMotion` (as
+        // an earlier pass did) let the stage — canvas, 自由探索 toggle, and
+        // this file's own stepped-chapter strip below — scroll out of view
+        // after the first viewport under reduced motion, leaving every
+        // chapter past the first as a blank page (caught by Phase C Task 6's
+        // acceptance smoke test).
+        'scrolly-stage bg-background sticky top-0 h-svh w-full overflow-hidden',
       )}
     >
       <div
