@@ -38,6 +38,15 @@ export interface SceneApi {
   // mode === 'scrolly'.
   setMode: (m: SceneMode) => void;
   setScrollProgress: (p: number) => void;
+  // Phase D Task 2 — always implemented by createScene. World→screen
+  // projection of an arbitrary local-space anchor on a registered part, plus
+  // a throttled occlusion raycast against the currently active level's
+  // meshes. Additive: does not read or affect the explore/scrolly frame loop
+  // above. Returns null when the part isn't registered or isn't visible.
+  projectPart: (
+    id: PartId,
+    anchor?: [number, number, number],
+  ) => { x: number; y: number; onScreen: boolean; occluded: boolean } | null;
 }
 
 /** The scene's two render modes: 'explore' is the existing orbit/goLevel/
