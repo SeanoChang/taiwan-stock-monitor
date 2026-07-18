@@ -13,8 +13,16 @@ import {
   createGlowMaterials,
   createMaterials,
 } from '@/lib/scene/materials';
+import { activeLevelFor, evalCamera, evaluate } from '@/lib/scene/disassembly-timeline';
 import { ALL_PART_IDS, createPartRegistry } from '@/lib/scene/parts';
-import type { CamSpec, Level, LevelContext, SceneApi, SceneOptions } from '@/lib/scene/types';
+import type {
+  CamSpec,
+  Level,
+  LevelContext,
+  SceneApi,
+  SceneMode,
+  SceneOptions,
+} from '@/lib/scene/types';
 import type { Locale } from '@/lib/i18n/config';
 
 export type { SceneApi, SceneOptions } from '@/lib/scene/types';
@@ -99,6 +107,15 @@ export function createScene(opts: SceneOptions): SceneApi {
   let cur = -1,
     animating = false,
     cooldownUntil = 0;
+  // Phase C — 'explore' is the pre-existing goLevel/orbit/hotspot behavior,
+  // untouched below; it stays the default until something calls
+  // api.setMode('scrolly'). `scrollP` is a plain module-local number (never
+  // React state) fed by api.setScrollProgress() each frame from the scroll
+  // island's rAF loop — poses are re-derived from it every frame via the pure
+  // evaluate(p)/evalCamera(p) timeline, so there is nothing to drift.
+  let mode: SceneMode = 'explore';
+  let scrollP = 0;
+  let wantAutoRotate = autoRotate !== false;
 
   const controls = createOrbitControls({
     el: renderer.domElement,
@@ -136,6 +153,47 @@ export function createScene(opts: SceneOptions): SceneApi {
 
   function wait(ms: number) {
     return new Promise<void>((r) => setTimeout(r, ms));
+  }
+
+  // Phase C — the entire scrolly render path. Pure function of `p`: every
+  // part pose and the camera pose are re-derived from `evaluate(p)` /
+  // `evalCamera(p)` every call, so scrubbing forward then back lands on
+  // exactly the same poses (no accumulation, no setState — see D-002).
+  // Lid onset/offset (.32/.62) mirror BOUNDS[3]/BOUNDS[5] in
+  // disassembly-timeline.ts (ch3 lid-lift through the end of ch4 board
+  // explode); not imported to keep this task's file scope to
+  // silicon-stack-scene.ts/types.ts/parts.ts only.
+  function applyDisassembly(p: number) {
+    const lv = activeLevelFor(p);
+    levels.forEach((l, k) => {
+      l.group.visible = k === lv;
+      // Hotspots aren't projected in scrolly mode (see frame() below); hide
+      // every level's DOM layer so no stale-positioned hotspot markers show.
+      l.dom!.style.display = 'none';
+    });
+    fog.near = levels[lv].fog[0];
+    fog.far = levels[lv].fog[1];
+
+    const lidObj = parts.get('lid');
+    if (lidObj) lidObj.visible = p >= 0.32 && p < 0.62;
+
+    for (const [id, pose] of evaluate(p)) parts.applyPoseFromBase(id, pose);
+
+    const c = evalCamera(p);
+    ctl.target.set(c.target[0], c.target[1], c.target[2]);
+    ctl.r = ctl.dR = c.r;
+    ctl.theta = ctl.dTheta = c.theta;
+    ctl.phi = ctl.dPhi = c.phi;
+    // Position the camera directly from the (now drift-free, undamped) ctl
+    // state — the same spherical→cartesian math controls.update() uses for
+    // explore mode, applied here without its auto-rotate/pointer-damping
+    // logic so the camera is an exact function of p, not of frame timing.
+    camera.position.set(
+      ctl.target.x + ctl.r * Math.sin(ctl.phi) * Math.sin(ctl.theta),
+      ctl.target.y + ctl.r * Math.cos(ctl.phi),
+      ctl.target.z + ctl.r * Math.sin(ctl.phi) * Math.cos(ctl.theta),
+    );
+    camera.lookAt(ctl.target);
   }
 
   const api: SceneApi = {
@@ -196,6 +254,7 @@ export function createScene(opts: SceneOptions): SceneApi {
       applyAccent(accents, ACC);
     },
     setAutoRotate(b: boolean) {
+      wantAutoRotate = b !== false;
       controls.setAutoRotate(b);
     },
     setLocale(loc: Locale) {
@@ -204,6 +263,29 @@ export function createScene(opts: SceneOptions): SceneApi {
     },
     applyPose: (id, pose) => parts.applyPose(id, pose),
     getPart: (id) => parts.get(id),
+    setMode(m: SceneMode) {
+      if (mode === m) return;
+      mode = m;
+      if (m === 'explore') {
+        // Handoff back to explore: every part must return to exactly its
+        // pre-Phase-C pose (goLevel/orbit/hotspots stay byte-identical) —
+        // reset the whole registry rather than trusting scrollP===0.
+        parts.ids().forEach((id) => parts.reset(id));
+        const lidObj = parts.get('lid');
+        if (lidObj) lidObj.visible = false;
+        applyLevel(cur);
+        controls.setAutoRotate(wantAutoRotate);
+      } else {
+        // Scrolly owns the camera every frame via applyDisassembly(); disable
+        // auto-rotate/idle-drift and make sure no explore-mode level
+        // transition is left mid-flight fighting for ctl state.
+        controls.setAutoRotate(false);
+        animating = false;
+      }
+    },
+    setScrollProgress(p: number) {
+      scrollP = p;
+    },
     dispose() {
       disposed = true;
       renderer.dispose();
@@ -236,10 +318,13 @@ export function createScene(opts: SceneOptions): SceneApi {
   function frame() {
     if (disposed) return;
     tick(frame);
-    controls.update(camera);
+    if (mode === 'scrolly') applyDisassembly(scrollP);
+    else controls.update(camera);
     renderer.render(scene, camera);
-    // hotspot projection
-    if (cur >= 0 && !animating) projectHotspots(levels[cur].hotspots, camera, container);
+    // hotspot projection — explore mode only (scrolly hides every level's DOM
+    // layer in applyDisassembly, but skip the projection work entirely too).
+    if (mode === 'explore' && cur >= 0 && !animating)
+      projectHotspots(levels[cur].hotspots, camera, container);
   }
 
   // resize

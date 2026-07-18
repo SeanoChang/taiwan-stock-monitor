@@ -31,7 +31,20 @@ export interface SceneApi {
   // them; kept optional here so this type-only change can't break the build.
   applyPose?: (id: PartId, pose: Pose) => void;
   getPart?: (id: PartId) => THREE.Object3D | undefined;
+  // Phase C Task 2 — always implemented by createScene. `mode` defaults to
+  // 'explore' (the pre-existing goLevel/orbit/hotspots behavior, byte-identical
+  // until something calls setMode('scrolly')). `setScrollProgress` feeds the
+  // scrolly render loop a scroll-derived p ∈ [0,1]; it is only read while
+  // mode === 'scrolly'.
+  setMode: (m: SceneMode) => void;
+  setScrollProgress: (p: number) => void;
 }
+
+/** The scene's two render modes: 'explore' is the existing orbit/goLevel/
+ * hotspot behavior (default, untouched by Phase C); 'scrolly' drives every
+ * part + the camera from `disassembly-timeline.ts`'s evaluate(p)/evalCamera(p)
+ * each frame — no GSAP tweens ever touch three.js objects (decision D-002). */
+export type SceneMode = 'explore' | 'scrolly';
 
 export interface Hotspot {
   title: LStr;
@@ -105,11 +118,31 @@ export interface Pose {
   opacity?: number; // 0..1; triggers per-part material isolation
 }
 
+/**
+ * A base-relative DELTA pose — the shape the Phase C disassembly timeline
+ * emits from `evaluate(p)` (see `lib/scene/disassembly-timeline.ts`'s
+ * `PartPose`, which is structurally identical by design so its Map values
+ * pass straight into `applyPoseFromBase` with no conversion). Unlike `Pose`
+ * above (an absolute transform), position/rotation here are offsets added to
+ * the part's registered base transform and scale is a multiplier on the base
+ * scale — so a part with no active keyframe (`{}`) simply sits at its base
+ * pose. Opacity remains absolute (0..1), same semantics as `Pose.opacity`.
+ */
+export interface PoseDelta {
+  position?: [number, number, number];
+  rotation?: [number, number, number];
+  scale?: number;
+  opacity?: number;
+}
+
 export interface PartRegistry {
   register: (id: PartId, obj: THREE.Object3D) => THREE.Object3D;
   get: (id: PartId) => THREE.Object3D | undefined;
   has: (id: PartId) => boolean;
   ids: () => PartId[];
   applyPose: (id: PartId, pose: Pose) => void;
+  // Phase C Task 2 — deltas from base (see PoseDelta above); this is what the
+  // scrolly render loop calls every frame with evaluate(p)'s output.
+  applyPoseFromBase: (id: PartId, pose: PoseDelta) => void;
   reset: (id: PartId) => void; // restore captured base transform + opacity 1
 }
