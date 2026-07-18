@@ -15,7 +15,7 @@ export const MATERIALS_COMPANIES: SCCompany[] = [
     exch: 'TPEx',
     role: l(
       'Photoresist & advanced-node process materials qualified at leading foundries; 2nm EBR/rinse/develop chemistry shipped to all 4 TSMC 2nm fabs as sole yellow-light-area kit supplier',
-      '通過先進製程認證的光阻與製程材料；2nm 邊緣曝光／清洗／顯影材料供應台積電全部 4 座 2nm 廠，為黃光區獨家材料商',
+      '通過先進製程認證的光阻與製程材料；2nm 邊緣去膠／清洗／顯影材料供應台積電全部 4 座 2nm 廠，為黃光區獨家材料商',
     ),
     rel: [{ to: 'tsmc', label: l('resist materials supplier', '光阻材料供應商') }],
   },
@@ -101,7 +101,7 @@ export const MATERIALS_COMPANIES: SCCompany[] = [
     ticker: '1785',
     exch: 'TPEx',
     role: l(
-      'Sputtering targets (incl. ruthenium for TSMC 2nm/RRAM) & closed-loop precious-metal recycling for fabs; emerging-market subsidiary Chuangju (創鉅)',
+      'Sputtering targets (incl. ruthenium for TSMC 2nm/RRAM) & closed-loop precious-metal recycling for fabs; emerging-board-listed subsidiary Chuangju (創鉅)',
       '濺鍍靶材（含供應台積電 2nm／RRAM 的釕靶）與貴金屬閉環回收；興櫃子公司創鉅',
     ),
     rel: [{ to: 'tsmc', label: l('target supplier', '靶材供應商') }],
