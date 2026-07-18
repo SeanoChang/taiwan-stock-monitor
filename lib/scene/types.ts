@@ -26,6 +26,11 @@ export interface SceneApi {
   setAutoRotate: (b: boolean) => void;
   setLocale: (loc: Locale) => void;
   dispose: () => void;
+  // Optional in Phase B Task 1 (types + registry only, no scene wiring yet —
+  // that's Task 2). Tighten to required once createScene always implements
+  // them; kept optional here so this type-only change can't break the build.
+  applyPose?: (id: PartId, pose: Pose) => void;
+  getPart?: (id: PartId) => THREE.Object3D | undefined;
 }
 
 export interface Hotspot {
@@ -64,6 +69,47 @@ export interface LevelContext extends GeometryHelpers {
   GLOWDIM: THREE.MeshStandardMaterial;
   ACC: THREE.Color;
   accents: AccentRegistry;
+  // Optional for the same reason as SceneApi.applyPose/getPart above — Task 2
+  // threads the actual registry into createScene's ctx object.
+  parts?: PartRegistry;
 }
 
 export type LevelBuilder = (g: THREE.Group, lv: Level, ctx: LevelContext) => void;
+
+// ---------- Part registry (addressable sub-assemblies) ----------
+// PartId is the contract with Phase C (disassembly timeline), Phase D
+// (annotation anchors) and Phase G (tree containment 3D). The `/` explorer's
+// Level API above is untouched — parts are additive handles into the same
+// meshes, registered by level builders as they construct the scene.
+
+export type PartId =
+  | 'rack'
+  | 'sled'
+  | 'lid'
+  | 'fanWall'
+  | 'gpuTray'
+  | 'board'
+  | 'heatsink'
+  | 'interposer'
+  | 'substrate'
+  | 'die'
+  | 'fins'
+  | `psu${number}`
+  | `gpuModule${number}`
+  | `hbm${number}`;
+
+export interface Pose {
+  position?: [number, number, number];
+  rotation?: [number, number, number]; // euler XYZ radians
+  scale?: number | [number, number, number];
+  opacity?: number; // 0..1; triggers per-part material isolation
+}
+
+export interface PartRegistry {
+  register: (id: PartId, obj: THREE.Object3D) => THREE.Object3D;
+  get: (id: PartId) => THREE.Object3D | undefined;
+  has: (id: PartId) => boolean;
+  ids: () => PartId[];
+  applyPose: (id: PartId, pose: Pose) => void;
+  reset: (id: PartId) => void; // restore captured base transform + opacity 1
+}
