@@ -65,7 +65,7 @@
   --secondary-foreground: #f5f5f7;
   --muted: rgba(255, 255, 255, 0.045);
   --muted-foreground: #a1a1a6;
-  --tertiary: #6e6e73;
+  --tertiary: #8a8a8f; /* Apple caption gray, lightened from #6e6e73 to clear AA 4.5:1 on near-black fine print */
   --accent: rgba(255, 255, 255, 0.08);
   --accent-foreground: #f5f5f7;
   --destructive: #e66767;

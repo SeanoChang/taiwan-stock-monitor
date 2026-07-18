@@ -8,12 +8,10 @@ import { cn } from '@/lib/utils';
  * wrapping brand (left) and nav anchors + locale toggle (right) as **one
  * unit** — quiet, no pill chrome around the cluster.
  *
- * Not yet composed into any route: `/`, `/supply-chain` and `/market` each
- * still build their own bespoke header/overlay (page-level markup, Task
- * 4/5 scope — out of Task 3's file list, which is `app/layout.tsx` +
- * `components/site/`). This primitive exists so those tasks (or a
- * dedicated follow-up) can adopt the literal unified bar in place of their
- * ad hoc containers without re-deriving the container styling.
+ * Composed by `/market` (app/market/page.tsx). The canvas routes (`/`,
+ * `/supply-chain`) keep their full-bleed graph-overlay chrome using the same
+ * brand/anchors/tokens in page-level markup; adopt this bar on other routes
+ * to get the unified container styling without re-deriving it.
  */
 export function SiteHeader({
   brand,
