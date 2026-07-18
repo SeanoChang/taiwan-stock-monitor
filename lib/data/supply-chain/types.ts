@@ -42,7 +42,7 @@ export interface SCCompany {
   name: string; // English / romanized name
   zh?: string; // Chinese name
   ticker: string;
-  exch: 'TWSE' | 'TPEx' | 'US' | 'JP' | 'KR' | 'EU' | 'Private';
+  exch: 'TWSE' | 'TPEx' | 'Emerging' | 'US' | 'JP' | 'KR' | 'EU' | 'Private';
   role: LStr;
   rel?: SCRel[];
 }
