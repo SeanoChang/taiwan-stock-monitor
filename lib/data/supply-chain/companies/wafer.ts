@@ -82,4 +82,47 @@ export const WAFER_COMPANIES: SCCompany[] = [
       { to: 'vis', label: l('mask supplier', '光罩供應商') },
     ],
   },
+  // ---- 2026-07 upstream expansion: specialty gases ----
+  {
+    id: 'tsc4772',
+    cat: 'gas',
+    name: 'Taiwan Speciality Chemicals',
+    zh: '台特化',
+    ticker: '4772',
+    exch: 'TPEx',
+    role: l(
+      'Semiconductor-grade silane/disilane (Si2H6) — TSMC 2nm GAA CVD workhorse (SAS group)',
+      '半導體級矽甲烷／乙矽烷（Si2H6）——台積電 2nm GAA CVD 主力（中美晶集團）',
+    ),
+    rel: [
+      { to: 'tsmc', label: l('precursor gas supplier', '前驅物氣體供應商') },
+      { to: 'sas5483', label: l('group affiliate', '集團關係企業') },
+    ],
+  },
+  {
+    id: 'crystalgas4768',
+    cat: 'gas',
+    name: 'Crystal-Optech Gas',
+    zh: '晶呈科技',
+    ticker: '4768',
+    exch: 'TPEx',
+    role: l(
+      'Full-process four-stage specialty gas (C4F8/C4F6/SF6/AHF) + wet chemicals + wafer reclaim',
+      '全製程四段特氣（C4F8/C4F6/SF6/AHF）＋濕化學＋再生晶圓',
+    ),
+    rel: [{ to: 'tsmc', label: l('specialty gas supplier', '特氣供應商') }],
+  },
+  {
+    id: 'luhon1229',
+    cat: 'gas',
+    name: 'Lien Hwa Industrial Holdings',
+    zh: '聯華實業控股',
+    ticker: '1229',
+    exch: 'TWSE',
+    role: l(
+      "Holds ~50% of unlisted Lien Hwa Linde (Taiwan's largest industrial-gas maker) — the only listed proxy",
+      '持台灣最大工業氣體商聯華林德約 50%（林德未上市，唯一掛牌曝險）',
+    ),
+    rel: [{ to: 'tsmc', label: l('industrial gas (via JV)', '工業氣體（透過合資）') }],
+  },
 ];
