@@ -241,6 +241,10 @@ export const MATERIALS_COMPANIES: SCCompany[] = [
       'Nittobo affiliate (47.65% held); closest listed proxy to the T-glass cloth monopoly, booked to 2027',
       '日東紡持股 47.65% 的關係企業，最貼近 T-glass 玻纖布獨占者，接單滿至 2027',
     ),
+    rel: [
+      { to: 'emc2383', label: l('glass-cloth supplier', '玻纖布供應商') },
+      { to: 'tuc6274', label: l('glass-cloth supplier', '玻纖布供應商') },
+    ],
   },
   {
     id: 'dehong5475',
@@ -253,6 +257,7 @@ export const MATERIALS_COMPANIES: SCCompany[] = [
       'Only listed Taiwan maker of electronic-grade quartz-fiber yarn/cloth (Rubin-gen low-Df M9/Q)',
       '台灣唯一電子級石英纖維紗／布，Rubin 世代 M9/Q 低 Df 布',
     ),
+    rel: [{ to: 'emc2383', label: l('glass-cloth supplier', '玻纖布供應商') }],
   },
   {
     id: 'nanpao4766',
@@ -265,5 +270,9 @@ export const MATERIALS_COMPANIES: SCCompany[] = [
       'JV cutting into TSMC advanced-packaging UV debonding / adhesive materials',
       '與新應材／信紘科合資，切入台積電先進封裝 UV 解膠／膠黏材料',
     ),
+    rel: [
+      { to: 'aemc', label: l('advanced-packaging material partner', '先進封裝材料夥伴') },
+      { to: 'trusval', label: l('advanced-packaging material partner', '先進封裝材料夥伴') },
+    ],
   },
 ];
