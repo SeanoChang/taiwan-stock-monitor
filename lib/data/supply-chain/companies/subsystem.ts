@@ -129,7 +129,10 @@ export const SUBSYSTEM_COMPANIES: SCCompany[] = [
     zh: '崇越電',
     ticker: '3388',
     exch: 'TWSE',
-    role: l('Thermal interface materials (silicone) for modules', '模組用導熱介面材料（矽膠）'),
+    role: l(
+      'Thermal interface materials (silicone) for modules; Shin-Etsu silicone-TIM agent, winning AI-server thermal designs at cloud-service providers',
+      '模組用導熱介面材料（矽膠）；信越矽膠導熱材代理，打入雲端服務商 AI 伺服器散熱設計',
+    ),
     rel: [{ to: 'avc', label: l('TIM supplier', '導熱材供應商') }],
   },
 

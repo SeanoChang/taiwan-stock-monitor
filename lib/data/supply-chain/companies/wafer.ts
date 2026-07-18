@@ -66,7 +66,10 @@ export const WAFER_COMPANIES: SCCompany[] = [
     zh: '昇陽半導體',
     ticker: '8028',
     exch: 'TPEx',
-    role: l('Wafer reclaim & thinning services', '晶圓再生與薄化服務'),
+    role: l(
+      "World's largest wafer-reclaim capacity ~850K/mo, heading to ~45% global by 2028",
+      '全球最大再生晶圓產能 ~850K 片/月，2028 全球約 45%',
+    ),
     rel: [{ to: 'tsmc', label: l('reclaim vendor', '再生服務商') }],
   },
   {
