@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { SiliconStackExplorer } from '@/components/explorer/silicon-stack-explorer';
+import { ScrollyHome } from '@/components/explorer/scrolly/scrolly-home';
 import { explorerCopy } from '@/components/explorer/explorer-copy';
 import { Brand } from '@/components/site/brand';
 import { LocaleToggle } from '@/components/site/locale-toggle';
@@ -17,7 +17,7 @@ export const metadata: Metadata = {
 export default async function HomePage() {
   const locale = await getLocale();
   return (
-    <SiliconStackExplorer
+    <ScrollyHome
       locale={locale}
       copy={explorerCopy(locale)}
       brand={<Brand locale={locale} tagline />}
@@ -36,3 +36,7 @@ export default async function HomePage() {
     />
   );
 }
+// Deep link (/#ch-N) and the 自由探索 handoff are handled client-side inside
+// ScrollyHome; this page stays a server component — only the chrome slots
+// (Brand/LocaleToggle/NavLinks/Badge) and the resolved copy/locale cross the
+// server/client boundary as props, same as before this task.
