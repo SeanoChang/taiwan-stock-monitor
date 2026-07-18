@@ -2,14 +2,7 @@
 
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
+import { TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { PALETTE, STAGE_GROUP } from '@/components/graph/graph-model';
 import { CATEGORY_MAP } from '@/lib/data/supply-chain';
 import { fmtPct, fmtSigned, upDownColor } from '@/lib/format';
@@ -21,8 +14,17 @@ export type { MarketRow };
 
 export function QuoteTable({ rows, locale }: { rows: MarketRow[]; locale: Locale }) {
   return (
-    <Table>
-      <TableHeader className="ss-veil ss-hairline sticky top-11 z-10">
+    // Bare <table> (not the `Table` wrapper from components/ui/table.tsx):
+    // that wrapper injects its own `overflow-x-auto` div, which — being the
+    // nearer ancestor scroll container — would hijack the header's sticky
+    // positioning before it ever reaches app/market/page.tsx's own bounded,
+    // ss-scroll `overflow-auto` card (an ancestor with overflow-x-auto forces
+    // overflow-y to a scrolling value too, per CSS Overflow §3, so a sticky
+    // header inside it can only pin against *that* scrollport). Rendering
+    // the table element directly here makes the card the sticky header's
+    // one and only scrolling ancestor.
+    <table className="w-full caption-bottom text-sm">
+      <TableHeader className="ss-veil ss-hairline sticky top-0 z-10">
         <TableRow className="ss-hairline hover:bg-transparent">
           <TableHead className="text-muted-foreground w-20">{t('colCode', locale)}</TableHead>
           <TableHead className="text-muted-foreground">{t('colName', locale)}</TableHead>
@@ -104,6 +106,6 @@ export function QuoteTable({ rows, locale }: { rows: MarketRow[]; locale: Locale
           );
         })}
       </TableBody>
-    </Table>
+    </table>
   );
 }

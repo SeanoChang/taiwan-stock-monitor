@@ -92,7 +92,7 @@ export default async function MarketPage({ searchParams }: PageProps) {
 
         <section
           aria-label="quotes"
-          className="bg-card ss-hairline overflow-x-auto rounded-[var(--radius-lg)] border"
+          className="bg-card ss-hairline ss-scroll max-h-[70vh] overflow-auto rounded-[var(--radius-lg)] border"
         >
           <QuoteTable rows={rows} locale={locale} />
         </section>
