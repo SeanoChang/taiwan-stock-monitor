@@ -34,10 +34,10 @@ function RelRow({
     <li>
       <button
         onClick={onClick}
-        className="bg-secondary hover:border-primary hover:bg-accent flex w-full items-baseline gap-2 rounded-[10px] border px-3 py-2.5 text-left transition-colors"
+        className="ss-hairline bg-secondary hover:border-primary hover:bg-accent flex w-full items-baseline gap-2 rounded-[var(--radius-md)] border px-3 py-2.5 text-left transition-colors"
       >
         <span className="text-[12.5px] font-semibold whitespace-nowrap">{name}</span>
-        <span className="text-foreground/55 text-[11px]">{pick(label, locale)}</span>
+        <span className="text-muted-foreground text-[11px]">{pick(label, locale)}</span>
       </button>
     </li>
   );
@@ -55,13 +55,13 @@ export function NodePanel({ nodeId, locale, onNavigate, onClose }: NodePanelProp
       : (COMPANY_MAP[id]?.name ?? id);
 
   return (
-    <aside className="ss-panel ss-scroll bg-card/90 absolute inset-y-0 right-0 z-20 w-[372px] max-w-[92vw] overflow-y-auto border-l px-6 py-6 backdrop-blur-xl">
+    <aside className="ss-panel ss-hairline ss-scroll bg-card/90 absolute inset-y-0 right-0 z-20 w-[372px] max-w-[92vw] overflow-y-auto border-l px-6 py-6 backdrop-blur-xl">
       <Button
         variant="outline"
         size="icon"
         onClick={onClose}
         title={t('close', locale)}
-        className="bg-secondary text-foreground/80 absolute top-3.5 right-3.5 z-10 size-8 rounded-full"
+        className="bg-secondary text-foreground absolute top-3.5 right-3.5 z-10 size-8 rounded-[var(--radius-pill)]"
       >
         ✕
       </Button>
@@ -75,13 +75,10 @@ export function NodePanel({ nodeId, locale, onNavigate, onClose }: NodePanelProp
               : undefined;
           return (
             <>
-              <p
-                className="mb-2 text-[10.5px] font-bold tracking-[0.16em] uppercase"
-                style={{ color: PALETTE[STAGE_GROUP[cat.stage]] }}
-              >
+              <p className="text-eyebrow mb-2" style={{ color: PALETTE[STAGE_GROUP[cat.stage]] }}>
                 {locale === 'zh' ? cat.zh : cat.name}
               </p>
-              <h2 className="mb-1 pr-7 text-[21px] leading-snug font-semibold">
+              <h2 className="font-heading mb-1 pr-7 text-[21px] leading-snug font-semibold">
                 {locale === 'zh'
                   ? company.zh
                     ? `${company.zh} ${company.name}`
@@ -92,7 +89,7 @@ export function NodePanel({ nodeId, locale, onNavigate, onClose }: NodePanelProp
                 <Badge className="bg-primary text-primary-foreground rounded-md font-mono text-xs font-semibold">
                   {company.ticker}
                 </Badge>
-                <span className="text-foreground/60 text-xs">
+                <span className="text-muted-foreground text-xs">
                   {company.exch === 'TWSE'
                     ? `TWSE ${t('listedTWSE', locale)}`
                     : company.exch === 'TPEx'
@@ -102,7 +99,7 @@ export function NodePanel({ nodeId, locale, onNavigate, onClose }: NodePanelProp
               </div>
 
               {quote && (
-                <div className="bg-secondary mb-4 flex items-baseline gap-3 rounded-[10px] border px-3.5 py-3">
+                <div className="ss-hairline bg-secondary mb-4 flex items-baseline gap-3 rounded-[var(--radius-md)] border px-3.5 py-3">
                   <span className="text-2xl font-light tracking-tight">
                     NT${quote.close.toLocaleString()}
                   </span>
@@ -112,22 +109,18 @@ export function NodePanel({ nodeId, locale, onNavigate, onClose }: NodePanelProp
                   >
                     {fmtChange(quote.change, quote.changePct)}
                   </span>
-                  <span className="text-foreground/45 ml-auto text-[10px]">{quote.date}</span>
+                  <span className="text-tertiary ml-auto text-[10px]">{quote.date}</span>
                 </div>
               )}
 
-              <p className="text-foreground/80 mb-4 text-[13px] leading-relaxed">
-                {pick(company.role, locale)}
-              </p>
-              <p className="bg-muted text-foreground/50 mb-5 rounded-[10px] border px-3 py-2.5 text-[11px] leading-relaxed">
+              <p className="text-body text-muted-foreground mb-4">{pick(company.role, locale)}</p>
+              <p className="ss-hairline bg-muted text-tertiary mb-5 rounded-[var(--radius-md)] border px-3 py-2.5 text-[11px] leading-relaxed">
                 {pick(cat.desc, locale)}
               </p>
 
               {(company.rel ?? []).length > 0 && (
                 <>
-                  <p className="text-foreground/45 mb-2 text-[10.5px] font-bold tracking-[0.16em] uppercase">
-                    {t('linkedTo', locale)}
-                  </p>
+                  <p className="text-eyebrow mb-2">{t('linkedTo', locale)}</p>
                   <ul className="mb-5 flex flex-col gap-1.5">
                     {(company.rel ?? []).map((r) => (
                       <RelRow
@@ -143,9 +136,7 @@ export function NodePanel({ nodeId, locale, onNavigate, onClose }: NodePanelProp
               )}
               {inboundRels(company.id).length > 0 && (
                 <>
-                  <p className="text-foreground/45 mb-2 text-[10.5px] font-bold tracking-[0.16em] uppercase">
-                    {t('referencedBy', locale)}
-                  </p>
+                  <p className="text-eyebrow mb-2">{t('referencedBy', locale)}</p>
                   <ul className="mb-5 flex flex-col gap-1.5">
                     {inboundRels(company.id).map((r) => (
                       <RelRow
@@ -165,36 +156,29 @@ export function NodePanel({ nodeId, locale, onNavigate, onClose }: NodePanelProp
 
       {category && (
         <>
-          <p
-            className="mb-2 text-[10.5px] font-bold tracking-[0.16em] uppercase"
-            style={{ color: PALETTE[STAGE_GROUP[category.stage]] }}
-          >
+          <p className="text-eyebrow mb-2" style={{ color: PALETTE[STAGE_GROUP[category.stage]] }}>
             {(() => {
               const st = STAGES.find((s) => s.id === category.stage);
               return st ? (locale === 'zh' ? st.zh : st.name) : '';
             })()}
           </p>
-          <h2 className="mb-2.5 pr-7 text-[21px] leading-snug font-semibold">
+          <h2 className="font-heading mb-2.5 pr-7 text-[21px] leading-snug font-semibold">
             {locale === 'zh' ? category.zh : category.name}
           </h2>
-          <p className="text-foreground/80 mb-5 text-[13px] leading-relaxed">
-            {pick(category.desc, locale)}
-          </p>
-          <p className="text-foreground/45 mb-2 text-[10.5px] font-bold tracking-[0.16em] uppercase">
-            {t('members', locale)}
-          </p>
+          <p className="text-body text-muted-foreground mb-5">{pick(category.desc, locale)}</p>
+          <p className="text-eyebrow mb-2">{t('members', locale)}</p>
           <ul className="mb-5 flex flex-col gap-1.5">
             {COMPANIES.filter((c) => c.cat === category.id).map((c) => (
               <li key={c.id}>
                 <button
                   onClick={() => onNavigate(c.id)}
-                  className="bg-secondary hover:border-primary hover:bg-accent flex w-full items-baseline gap-2 rounded-[10px] border px-3 py-2.5 text-left transition-colors"
+                  className="ss-hairline bg-secondary hover:border-primary hover:bg-accent flex w-full items-baseline gap-2 rounded-[var(--radius-md)] border px-3 py-2.5 text-left transition-colors"
                 >
                   <span className="text-[12.5px] font-semibold whitespace-nowrap">
                     {locale === 'zh' ? (c.zh ?? c.name) : c.name}
                   </span>
                   <span
-                    className={`font-mono text-[10.5px] ${c.exch === 'TWSE' || c.exch === 'TPEx' ? 'text-primary' : 'text-foreground/45'}`}
+                    className={`font-mono text-[10.5px] ${c.exch === 'TWSE' || c.exch === 'TPEx' ? 'text-primary' : 'text-tertiary'}`}
                   >
                     {c.ticker}
                   </span>
@@ -205,7 +189,7 @@ export function NodePanel({ nodeId, locale, onNavigate, onClose }: NodePanelProp
         </>
       )}
 
-      <footer className="text-foreground/40 border-t pt-3 text-[10px] leading-normal">
+      <footer className="ss-hairline text-tertiary border-t pt-3 text-[10px] leading-normal">
         {t('graphDisclaimer', locale)}
       </footer>
     </aside>

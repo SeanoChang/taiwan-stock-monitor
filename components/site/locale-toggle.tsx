@@ -1,5 +1,4 @@
 import { cn } from '@/lib/utils';
-import { buttonVariants } from '@/components/ui/button';
 import { setLocale } from '@/lib/i18n/actions';
 import type { Locale } from '@/lib/i18n/config';
 
@@ -7,6 +6,8 @@ import type { Locale } from '@/lib/i18n/config';
  * Locale switcher. A server function sets the cookie and the route re-renders
  * in the chosen language, so this needs no client JS of its own — and it stays
  * renderable from both the server board and the client explorer/graph chrome.
+ *
+ * Quiet product-bar control — no pill chrome, matches the nav anchors.
  */
 export function LocaleToggle({ locale, className }: { locale: Locale; className?: string }) {
   const next: Locale = locale === 'zh' ? 'en' : 'zh';
@@ -18,8 +19,7 @@ export function LocaleToggle({ locale, className }: { locale: Locale; className?
         type="submit"
         aria-label={locale === 'zh' ? 'Switch to English' : '切換為繁體中文'}
         className={cn(
-          buttonVariants({ variant: 'outline', size: 'sm' }),
-          'ss-veil border-border text-foreground/75 hover:text-foreground rounded-full text-xs font-semibold tracking-wider',
+          'text-muted-foreground hover:text-foreground active:text-primary focus-visible:ring-ring focus-visible:ring-offset-background flex h-11 shrink-0 items-center rounded-sm text-xs font-semibold tracking-wide transition-colors outline-none focus-visible:ring-2 focus-visible:ring-offset-2',
           className,
         )}
       >

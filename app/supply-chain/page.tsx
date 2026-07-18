@@ -32,12 +32,12 @@ export default async function SupplyChainPage({ searchParams }: PageProps) {
             <Brand locale={locale} />
             <Badge
               variant="outline"
-              className="border-primary/40 text-primary rounded-full text-xs font-semibold"
+              className="border-primary/40 text-primary rounded-[var(--radius-pill)] text-xs font-semibold"
             >
               {t('graphTitle', locale)}
             </Badge>
           </div>
-          <p className="text-foreground/55 text-[11px]">
+          <p className="text-muted-foreground text-[11px]">
             {TW_COUNT} {t('graphCounts', locale)} · {TOTAL_COUNT} {t('nodes', locale)} ·{' '}
             {CATEGORIES.length} {t('segments', locale)}
           </p>
@@ -49,14 +49,14 @@ export default async function SupplyChainPage({ searchParams }: PageProps) {
           <NavLinks locale={locale} current="/supply-chain" />
           <Badge
             variant="outline"
-            className="border-border text-foreground/45 rounded-full px-2.5 py-1 text-[10px] font-normal"
+            className="border-border text-tertiary rounded-[var(--radius-pill)] px-2.5 py-1 text-[10px] font-normal"
           >
             {t('notAdvice', locale)}
           </Badge>
         </div>
       }
       hint={
-        <p className="text-foreground/45 pointer-events-none absolute bottom-5 left-6 z-10 max-w-[520px] text-[11.5px] leading-relaxed">
+        <p className="text-tertiary pointer-events-none absolute bottom-5 left-6 z-10 max-w-[520px] text-[11.5px] leading-relaxed">
           {t('graphHint', locale)}
         </p>
       }

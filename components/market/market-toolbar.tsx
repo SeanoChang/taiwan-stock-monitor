@@ -18,7 +18,7 @@ import type { MarketSort } from '@/components/market/market-sort';
 import type { Locale } from '@/lib/i18n/config';
 import { t } from '@/lib/i18n/dict';
 
-const PILL = 'rounded-full text-[11px] font-semibold';
+const PILL = 'rounded-[var(--radius-pill)] text-[11px] font-semibold';
 
 export function MarketToolbar({
   locale,
@@ -39,7 +39,7 @@ export function MarketToolbar({
           type="search"
           defaultValue={query}
           placeholder={t('searchMarket', locale)}
-          className="bg-secondary h-9 w-[300px] max-w-[52vw] rounded-full px-4 text-xs"
+          className="bg-secondary ss-hairline focus-visible:ring-ring/50 h-9 w-[300px] max-w-[52vw] rounded-[var(--radius-pill)] border px-4 text-xs"
         />
         <button
           type="submit"
@@ -61,7 +61,7 @@ export function MarketToolbar({
       )}
 
       <nav aria-label={t('sortBy', locale)} className="ml-auto flex flex-wrap items-center gap-1.5">
-        <span className="text-foreground/50 text-[11px]">{t('sortBy', locale)}</span>
+        <span className="text-muted-foreground text-[11px]">{t('sortBy', locale)}</span>
         {MARKET_SORTS.map((s) => (
           <Link
             key={s}
