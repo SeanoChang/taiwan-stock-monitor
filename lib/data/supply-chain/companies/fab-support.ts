@@ -30,8 +30,8 @@ export const FAB_SUPPORT_COMPANIES: SCCompany[] = [
     ticker: '6829',
     exch: 'TPEx',
     role: l(
-      'Precision chamber parts & modules for semiconductor/EUV equipment',
-      '半導體／EUV 設備精密腔體零件與模組',
+      'Precision chamber parts & modules for semiconductor/EUV equipment, incl. vacuum-transfer and load-lock modules supplied direct to Applied Materials & Lam Research; semiconductor ~65-70% of revenue',
+      '半導體／EUV 設備精密腔體零件與模組，含真空傳輸與 load-lock 模組直供應材與 Lam Research；半導體占營收約 65-70%',
     ),
     rel: [{ to: 'tsmc', label: l('precision parts', '精密零件供應') }],
   },
@@ -59,8 +59,8 @@ export const FAB_SUPPORT_COMPANIES: SCCompany[] = [
     ticker: '8091',
     exch: 'TPEx',
     role: l(
-      'Precision process parts & coatings for etch/deposition chambers',
-      '蝕刻／沉積腔體精密零件與鍍膜',
+      'Precision process parts & coatings for etch/implant/thin-film chambers, qualified as a consumables supplier for TSMC 2nm',
+      '蝕刻／離子植入／薄膜腔體精密零件與鍍膜，已通過台積電 2nm 製程耗材認證',
     ),
     rel: [{ to: 'tsmc', label: l('chamber parts', '腔體零件供應') }],
   },
@@ -86,7 +86,10 @@ export const FAB_SUPPORT_COMPANIES: SCCompany[] = [
     zh: '辛耘',
     ticker: '3583',
     exch: 'TWSE',
-    role: l('Wet-process equipment & wafer reclaim services', '濕製程設備與晶圓再生服務'),
+    role: l(
+      'Front-end wet-process equipment, wafer reclaim services, and semiconductor equipment agency lines',
+      '前段濕製程設備、晶圓再生服務，並代理半導體設備產品線',
+    ),
     rel: [{ to: 'tsmc', label: l('equipment & reclaim', '設備與再生服務') }],
   },
   {
@@ -142,7 +145,10 @@ export const FAB_SUPPORT_COMPANIES: SCCompany[] = [
     zh: '志聖',
     ticker: '2467',
     exch: 'TWSE',
-    role: l('Exposure & lamination equipment for PCB/substrates', 'PCB／載板曝光與壓膜設備'),
+    role: l(
+      'Exposure & lamination equipment for PCB/substrates; invested in Contrel (東捷) for glass-substrate lines, semiconductor now over half of revenue',
+      'PCB／載板曝光與壓膜設備；轉投資東捷布局玻璃載板產線，半導體營收占比已逾五成',
+    ),
     rel: [{ to: 'unimicron', label: l('equipment supplier', '設備供應商') }],
   },
   {
@@ -152,8 +158,15 @@ export const FAB_SUPPORT_COMPANIES: SCCompany[] = [
     zh: '群翊',
     ticker: '6664',
     exch: 'TPEx',
-    role: l('PCB/substrate baking & automation equipment', 'PCB／載板烘烤與自動化設備'),
-    rel: [{ to: 'unimicron', label: l('equipment supplier', '設備供應商') }],
+    role: l(
+      'PCB/substrate baking & automation equipment — used in over 95% of ABF substrate fabs',
+      'PCB／載板烘烤與自動化設備 — 逾 95% ABF 載板廠採用',
+    ),
+    rel: [
+      { to: 'unimicron', label: l('equipment supplier', '設備供應商') },
+      { to: 'nanyapcb', label: l('bake/coat equipment supplier', '烘烤／塗佈設備供應商') },
+      { to: 'kinsus', label: l('bake/coat equipment supplier', '烘烤／塗佈設備供應商') },
+    ],
   },
   {
     id: 'contrel',
@@ -172,8 +185,14 @@ export const FAB_SUPPORT_COMPANIES: SCCompany[] = [
     zh: '鈦昇',
     ticker: '8027',
     exch: 'TPEx',
-    role: l('Laser drilling/marking equipment for packaging', '封裝用雷射鑽孔／打標設備'),
-    rel: [{ to: 'ase', label: l('laser equipment', '雷射設備供應') }],
+    role: l(
+      'Laser drilling/marking equipment for packaging, incl. TGV (through-glass-via) laser drilling for TSMC/ASE advanced packaging',
+      '封裝用雷射鑽孔／打標設備，含 TGV（玻璃通孔）雷射鑽孔，供應台積電／日月光先進封裝',
+    ),
+    rel: [
+      { to: 'ase', label: l('laser equipment', '雷射設備供應') },
+      { to: 'tsmc', label: l('TGV laser drilling', 'TGV 雷射鑽孔供應') },
+    ],
   },
   {
     id: 'utechzone',
@@ -182,7 +201,10 @@ export const FAB_SUPPORT_COMPANIES: SCCompany[] = [
     zh: '由田',
     ticker: '3455',
     exch: 'TPEx',
-    role: l('AOI inspection machines', 'AOI 自動光學檢測設備'),
+    role: l(
+      'AOI inspection machines, with a dedicated IC-substrate inspection product line',
+      'AOI 自動光學檢測設備，設有 IC 載板檢測專屬產品線',
+    ),
     rel: [{ to: 'unimicron', label: l('AOI supplier', 'AOI 設備供應') }],
   },
   {
@@ -232,8 +254,14 @@ export const FAB_SUPPORT_COMPANIES: SCCompany[] = [
     zh: '牧德',
     ticker: '3563',
     exch: 'TWSE',
-    role: l('PCB & substrate optical inspection systems', 'PCB／載板光學檢測系統'),
-    rel: [{ to: 'unimicron', label: l('inspection supplier', '檢測設備供應') }],
+    role: l(
+      'PCB & substrate optical inspection systems, pushing into IC-substrate fine-line/micro-blind-via AOI co-developed with ASE',
+      'PCB／載板光學檢測系統，跨入 IC 載板細線路／微盲孔 AOI，與日月光共同開發',
+    ),
+    rel: [
+      { to: 'unimicron', label: l('inspection supplier', '檢測設備供應') },
+      { to: 'ase', label: l('IC-substrate AOI co-development', 'IC 載板 AOI 共同開發') },
+    ],
   },
 
   // fab support: cleanroom & fab engineering
@@ -300,7 +328,10 @@ export const FAB_SUPPORT_COMPANIES: SCCompany[] = [
     zh: '信紘科',
     ticker: '6667',
     exch: 'TPEx',
-    role: l('Ultra-pure chemical & gas delivery systems', '超純化學品與氣體輸送系統'),
+    role: l(
+      'Ultra-pure chemical & gas delivery systems, pivoting into circular-economy green-process fab solutions; TSMC ~55% of revenue',
+      '超純化學品與氣體輸送系統，轉型循環經濟綠色製程解決方案；台積電占營收約 55%',
+    ),
     rel: [{ to: 'tsmc', label: l('chemical delivery', '化學輸送系統') }],
   },
   {
@@ -310,7 +341,10 @@ export const FAB_SUPPORT_COMPANIES: SCCompany[] = [
     zh: '世禾',
     ticker: '3551',
     exch: 'TPEx',
-    role: l('Precision cleaning of process-chamber parts', '製程腔體零件精密清洗'),
+    role: l(
+      'Precision cleaning & regeneration of process-chamber parts — both price and volume rising as 2nm ramps',
+      '製程腔體零件精密清洗與再生 — 隨 2nm 量產出貨量與單價同步走高',
+    ),
     rel: [{ to: 'tsmc', label: l('parts cleaning', '零件清洗服務') }],
   },
 
@@ -323,8 +357,8 @@ export const FAB_SUPPORT_COMPANIES: SCCompany[] = [
     ticker: '5434',
     exch: 'TWSE',
     role: l(
-      'Largest local distributor of wafers, quartz & chemicals (Shin-Etsu agent)',
-      '最大半導體材料通路（信越代理）：晶圓、石英、化學品',
+      'Largest local distributor of wafers, quartz & chemicals — sole Taiwan agent for Shin-Etsu photoresist (~50% of the market); quartz JV manufactures furnace tubes & boats',
+      '最大半導體材料通路（信越代理）：晶圓、石英、化學品；為信越光阻台灣獨家代理（市佔約 50%）；石英合資公司生產爐管與晶舟',
     ),
     rel: [
       { to: 'shinetsu', label: l('Taiwan agent', '台灣代理') },
@@ -373,5 +407,168 @@ export const FAB_SUPPORT_COMPANIES: SCCompany[] = [
     exch: 'TWSE',
     role: l('Semiconductor distribution (incl. NVIDIA line)', '半導體通路（含 NVIDIA 產品線）'),
     rel: [{ to: 'nvidia', label: l('authorized distributor', '授權代理商') }],
+  },
+
+  // ---- 2026-07 upstream expansion ----
+  {
+    id: 'innotech7734',
+    cat: 'equip',
+    name: 'Innotech',
+    zh: '印能科技',
+    ticker: '7734',
+    exch: 'TPEx',
+    role: l(
+      'Vacuum-pressure de-void oven (VTS) ~90% share; solves CoWoS void/warpage',
+      '真空壓力除泡烤箱（VTS）全球近九成，解 CoWoS void／warpage',
+    ),
+    rel: [{ to: 'tsmc', label: l('advanced-packaging tool', '先進封裝設備') }],
+  },
+  {
+    id: 'sindtek6438',
+    cat: 'equip',
+    name: 'Sindtek Machinery',
+    zh: '迅得機械',
+    ticker: '6438',
+    exch: 'TWSE',
+    role: l(
+      'Substrate-line automation + TSMC CoWoS AMHS material handling',
+      '載板產線自動化＋台積電 CoWoS AMHS 搬運',
+    ),
+    rel: [
+      { to: 'unimicron', label: l('automation supplier', '自動化供應商') },
+      { to: 'tsmc', label: l('AMHS supplier', 'AMHS 供應商') },
+    ],
+  },
+  {
+    id: 'tenglong6937',
+    cat: 'equip',
+    name: 'Skytech',
+    zh: '天虹科技',
+    ticker: '6937',
+    exch: 'TWSE',
+    role: l(
+      'Domestic ALD/PVD deposition tools + 2000+ parts; 2nd-gen EUV pellicle metrology',
+      '本土 ALD/PVD 沉積設備＋2000+ 零件；EUV pellicle 量測二代機',
+    ),
+    rel: [{ to: 'tsmc', label: l('deposition tools', '沉積設備') }],
+  },
+  {
+    id: 'kungchun3178',
+    cat: 'equip',
+    name: 'Kung Chun Precision',
+    zh: '公準精密',
+    ticker: '3178',
+    exch: 'TPEx',
+    role: l(
+      'AMAT-concept precision machined parts / jigs for high-end process tools',
+      'AMAT 概念——高階製程設備精密加工件／治具',
+    ),
+  },
+  {
+    id: 'hwahong6983',
+    cat: 'euv',
+    name: 'Hwa Yang Precision',
+    zh: '華洋精機',
+    ticker: '6983',
+    exch: 'TPEx',
+    role: l(
+      "Taiwan's only EUV+DUV photomask particle/defect inspection (0.2µm); extends to CoWoS/TGV",
+      '台廠唯一 EUV+DUV 光罩微粒／缺陷檢測（0.2µm），延伸 CoWoS/TGV',
+    ),
+    rel: [{ to: 'tsmc', label: l('mask inspection', '光罩檢測') }],
+  },
+  {
+    id: 'jiashuo6953',
+    cat: 'euv',
+    name: 'Jiashuo',
+    zh: '家碩科技',
+    ticker: '6953',
+    exch: 'TPEx',
+    role: l(
+      'EUV / high-end reticle-pod clean, exchange, inspection & automated storage (Gudeng group)',
+      'EUV／高階光罩載具潔淨・交換・檢測・自動倉儲（家登集團）',
+    ),
+    rel: [
+      { to: 'gudeng', label: l('reticle-pod group', '光罩載具集團') },
+      { to: 'tsmc', label: l('reticle-pod service', '光罩載具服務') },
+    ],
+  },
+  {
+    id: 'pne6613',
+    cat: 'fabbuild',
+    name: 'P&E',
+    zh: '朋億',
+    ticker: '6613',
+    exch: 'TPEx',
+    role: l(
+      'High-purity chemical delivery systems (CDS) / gas piping to wet-process tools',
+      '高潔淨化學品供應系統（CDS）／氣體管路工程',
+    ),
+    rel: [{ to: 'tsmc', label: l('chemical delivery systems', '化學輸送系統') }],
+  },
+  {
+    id: 'chianfu8383',
+    cat: 'fabbuild',
+    name: 'ChianFu Industrial',
+    zh: '千附實業',
+    ticker: '8383',
+    exch: 'TPEx',
+    role: l(
+      'Fab systems engineering (gas/chemical piping) + precision-part integration',
+      '廠務系統工程（氣／化學管路）＋精密零組件整合',
+    ),
+    rel: [{ to: 'tsmc', label: l('fab systems engineering', '廠務系統工程') }],
+  },
+  {
+    id: 'raytech7703',
+    cat: 'fabbuild',
+    name: 'Ruize Industrial',
+    zh: '銳澤實業',
+    ticker: '7703',
+    exch: 'TPEx',
+    role: l(
+      'Fab hook-up / specialty-gas supply systems — manufacture, install, agency',
+      '廠務 hookup／特殊氣體供應系統代理製造安裝',
+    ),
+    rel: [{ to: 'tsmc', label: l('gas supply systems', '氣體供應系統') }],
+  },
+  {
+    id: 'megaunion6944',
+    cat: 'recycle',
+    name: 'MegaUnion',
+    zh: '兆聯實業',
+    ticker: '6944',
+    exch: 'TWSE',
+    role: l(
+      'TSMC UPW / wastewater recovery turnkey (listed 2025-05; NT$26.5B backlog)',
+      '台積電 UPW／廢水回收系統統包（2025/5 上市；在手 NT$264.7 億）',
+    ),
+    rel: [{ to: 'tsmc', label: l('water recovery turnkey', '水回收統包') }],
+  },
+  {
+    id: 'taifer1722',
+    cat: 'recycle',
+    name: 'Taiwan Fertilizer',
+    zh: '台肥',
+    ticker: '1722',
+    exch: 'TWSE',
+    role: l(
+      'Spent-sulfuric-acid regeneration at TSMC Taichung zero-waste plant (BOT, 2027 H2)',
+      '台積電台中零廢中心廢硫酸再生（廠中廠 BOT，2027 H2 投產）',
+    ),
+    rel: [{ to: 'tsmc', label: l('acid regeneration', '廢酸再生') }],
+  },
+  {
+    id: 'forestwater8473',
+    cat: 'recycle',
+    name: 'ForestWater',
+    zh: '山林水',
+    ticker: '8473',
+    exch: 'TWSE',
+    role: l(
+      'Nanzih reclaimed-water plant (BTO); full reclaimed-water supply to TSMC Kaohsiung by end-2028',
+      '楠梓再生水廠 BTO，2028 底供台積電高雄廠全量再生水',
+    ),
+    rel: [{ to: 'tsmc', label: l('reclaimed water', '再生水') }],
   },
 ];

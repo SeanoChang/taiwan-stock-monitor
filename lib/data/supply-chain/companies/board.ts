@@ -14,8 +14,8 @@ export const BOARD_COMPANIES: SCCompany[] = [
     ticker: '2383',
     exch: 'TWSE',
     role: l(
-      '#1 ultra-low-loss CCL — the laminate in NVIDIA GPU baseboards',
-      '超低損耗 CCL 龍頭 — NVIDIA GPU 基板指定板材',
+      '#1 ultra-low-loss CCL — the laminate in NVIDIA GPU baseboards; ~60% share of AI-CCL and sole M9-grade supplier for Rubin; risk watch: Doosan chasing Rubin CCL qualification',
+      '超低損耗 CCL 龍頭 — NVIDIA GPU 基板指定板材；AI CCL 市佔約六成、Rubin 世代 M9 唯一供應商；風險追蹤：韓廠斗山積極搶進 Rubin CCL 認證',
     ),
     rel: [
       { to: 'gce', label: l('CCL into AI PCBs', 'CCL 供應 AI 板廠') },
@@ -131,8 +131,15 @@ export const BOARD_COMPANIES: SCCompany[] = [
     zh: '尖點',
     ticker: '8021',
     exch: 'TWSE',
-    role: l('Micro drill bits for high-layer PCBs', '高層板微型鑽針'),
-    rel: [{ to: 'gce', label: l('drill supplier', '鑽針供應商') }],
+    role: l(
+      'Micro drill bits for high-layer PCBs, expanding into substrate-grade DLC-coated micro-drills; Dec-2025 strategic tie-up with Zhen Ding (ZDT)',
+      '高層板微型鑽針，跨入載板級 DLC 塗層微型鑽針；2025 年 12 月與臻鼎（ZDT）策略合作',
+    ),
+    rel: [
+      { to: 'gce', label: l('drill supplier', '鑽針供應商') },
+      { to: 'unimicron', label: l('substrate-grade drill supplier', '載板級鑽針供應商') },
+      { to: 'zdt', label: l('2025-12 strategic tie-up', '2025 年 12 月策略合作') },
+    ],
   },
 
   {
@@ -220,5 +227,23 @@ export const BOARD_COMPANIES: SCCompany[] = [
       '石英元件與振盪器 — 板卡與光模組的時脈',
     ),
     rel: [{ to: 'accton', label: l('timing devices', '時脈元件供應') }],
+  },
+
+  // ---- 2026-07 upstream expansion ----
+  {
+    id: 'kaiwai5498',
+    cat: 'pcb',
+    name: 'Kinwong (Kaiwai Electronics)',
+    zh: '凱崴電子',
+    ticker: '5498',
+    exch: 'TPEx',
+    role: l(
+      'Second-source micro-drill maker riding the AI/ABF drill shortage; 20-year revenue high 2026-06',
+      '第二受惠鑽針廠（AI/ABF 缺針潮）；2026/6 營收 20 年高',
+    ),
+    rel: [
+      { to: 'unimicron', label: l('micro-drill supplier', '鑽針供應商') },
+      { to: 'gce', label: l('micro-drill supplier', '鑽針供應商') },
+    ],
   },
 ];

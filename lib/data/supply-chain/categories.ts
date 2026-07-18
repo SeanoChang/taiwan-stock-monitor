@@ -431,6 +431,62 @@ export const CATEGORIES: SCCategory[] = [
       '與台灣供應鏈緊密咬合的海外平台、記憶體與設備巨頭。',
     ),
   },
+  // 2026-07 upstream expansion
+  {
+    id: 'gas',
+    stage: 'wafer',
+    name: 'Specialty & electronic gases',
+    zh: '特殊／電子氣體',
+    feeds: ['foundry'],
+    desc: l(
+      'Silicon precursors, specialty gases and AHF fed to CVD, etch and clean steps.',
+      '矽前驅物、特殊氣體與 AHF — 供給 CVD、蝕刻與清洗製程。',
+    ),
+  },
+  {
+    id: 'pkgmat',
+    stage: 'package',
+    name: 'Package materials & structures',
+    zh: '封裝材料／結構件',
+    feeds: ['osat', 'foundry'],
+    desc: l(
+      'Lids, heat spreaders, stiffener rings, molding compound (LMC/MUF) and EMC distribution.',
+      'lid／均熱片／補強環／成型膠（LMC/MUF）與 EMC 通路。',
+    ),
+  },
+  {
+    id: 'testlab',
+    stage: 'package',
+    name: 'Analysis & reliability labs',
+    zh: '檢測分析實驗室',
+    feeds: ['foundry', 'osat'],
+    desc: l(
+      'Third-party MA / FA / RA labs verifying advanced nodes, packaging and silicon photonics.',
+      '第三方 MA／FA／RA 實驗室，驗證先進製程、封裝與矽光子。',
+    ),
+  },
+  {
+    id: 'recycle',
+    stage: 'fabsupport',
+    name: 'Fab circular economy & water',
+    zh: '廠務循環／水資源',
+    feeds: ['foundry'],
+    desc: l(
+      'Spent-acid / solvent regeneration, ultra-pure-water and reclaimed-water loops for fabs.',
+      '廢酸／溶劑再生、UPW 與再生水回收 — 晶圓廠的循環。',
+    ),
+  },
+  {
+    id: 'glasspkg',
+    stage: 'package',
+    name: 'Glass-core / panel-level packaging',
+    zh: '玻璃基板／面板級封裝',
+    feeds: ['osat'],
+    desc: l(
+      'CoPoS / FOPLP / TGV equipment and glass-core substrate work.',
+      'CoPoS／FOPLP／TGV 設備與玻璃基板。',
+    ),
+  },
 ];
 
 export const CATEGORY_MAP: Record<string, SCCategory> = Object.fromEntries(
