@@ -12,7 +12,7 @@
     "format:check": "prettier --check .",
     "check:data": "tsx scripts/check-supply-chain.ts",
     "check:parts": "tsx scripts/check-parts.ts",
-    "test": "pnpm check:data"
+    "test": "pnpm check:data && pnpm check:parts"
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",

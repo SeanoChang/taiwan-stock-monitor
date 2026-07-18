@@ -1,4 +1,10 @@
 // Headless gate for the part registry — Object3D math needs no WebGL.
+// Scope: verifies registry MECHANICS (transform, reset, opacity isolation) and
+// that ALL_PART_IDS is unique. It does NOT instantiate the scene, so it can't
+// confirm every builder actually register()s its id (the level builders need
+// WebGL/DOM). That in-scene completeness is checked at runtime by the dev-only
+// "[scene] unregistered PartIds" warn in createScene, and by the Phase B
+// browser-smoke acceptance. Keep both in sync when adding a PartId.
 import * as THREE from 'three';
 import { ALL_PART_IDS, createPartRegistry } from '../lib/scene/parts';
 
