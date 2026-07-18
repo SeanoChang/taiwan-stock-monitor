@@ -29,7 +29,7 @@
 //      slot-layout + occlusion-fade rules this loop implements.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { RefObject } from 'react';
+import type { ReactNode, RefObject } from 'react';
 import { HARDWARE_PARTS } from '@/lib/data/hardware-map';
 import type { HardwarePart } from '@/lib/data/hardware-map';
 import { CHAPTERS } from '@/lib/scene/disassembly-timeline';
@@ -67,6 +67,20 @@ const VISIBLE_OPACITY_THRESHOLD = 0.03; // matches copy-panel.tsx's own cutoff
 // close to HardwareCard's `w-64` (256px) collapsed (no "更多" expansion) height.
 const FALLBACK_SIZE = { w: 256, h: 112 };
 
+// copy-panel.tsx's chapter-copy overlay shares this same `fixed inset-0`
+// screen space during the same active chapter's window (its panel is
+// `md:top-1/2 -translate-y-1/2`, up to `min(400px,36vw)` wide, on the same
+// edge this component's own `chapterId % 2` parity would put it, per
+// copy-panel.tsx's `alignRight = i % 2 === 1`). Two coordinations keep the
+// two overlays from fighting once a future task co-mounts both: hardware
+// cards paint at a strictly higher z-index than copy's `z-[8]` (deterministic
+// paint order, not an accidental DOM-order tie), and the column on
+// `copyPanelSide` (below) steers its own cards' vertical slots around this
+// approximate band rather than stacking through it. The band is a viewport-
+// height fraction, not a fixed px count, since the real panel's height is
+// content-driven.
+const COPY_PANEL_BAND = { top: 0.32, bottom: 0.68 };
+
 /** The CHAPTERS entry whose [p0,p1) window contains p — duplicated (not
  * exported), same as chapter-rail.tsx's and scrolly-stage.tsx's own copies of
  * this arithmetic: a few lines over the shared table, not worth sharing. */
@@ -97,6 +111,67 @@ interface Candidate {
   y: number;
   occluded: boolean;
   size: { w: number; h: number };
+}
+
+// Per-candidate leader-line/card slots, each its own component rather than
+// an inline `.map()` closure. React detaches/reattaches a callback `ref`
+// whenever the *function identity* passed to it changes between renders of
+// the same fiber — even when the underlying DOM node (matched by
+// `key={part.id}` where these are rendered) never actually remounts. A
+// `(el) => setLineEl(id, el)` / `(el) => setCardEl(id, el)` arrow built
+// inline inside CalloutLayer's own `.map()` would be a fresh closure on
+// every one of CalloutLayer's re-renders — every chapter transition, every
+// desktop/mobile breakpoint crossing, every useQuotes() TTL refresh (a new
+// `quotes` object each cycle) — tearing down and rebuilding every currently-
+// mounted card's ResizeObserver each time and dropping its measured size
+// back to FALLBACK_SIZE until the observer's next (async) callback fires,
+// even though the card never left the DOM. Hoisting each ref callback into
+// its own component lets `useCallback` do the memoizing instead: for a
+// `part.id` that persists across a CalloutLayer re-render, React reuses this
+// *same* component instance (by `key`), so `id` and `setLineEl`/`setCardEl`
+// (themselves already `[]`-stable) are unchanged deps and `useCallback`
+// returns the identical closure — no detach/reattach, no ResizeObserver
+// churn. (This also sidesteps ever reading a ref's `.current` during
+// render, which plain per-id memoization via a `useRef`-backed cache would
+// require.)
+function LeaderLineSlot({
+  id,
+  setLineEl,
+}: {
+  id: PartId;
+  setLineEl: (id: PartId, el: SVGLineElement | null) => void;
+}) {
+  const ref = useCallback((el: SVGLineElement | null) => setLineEl(id, el), [id, setLineEl]);
+  return (
+    <line
+      ref={ref}
+      className="invisible opacity-0"
+      stroke="var(--foreground)"
+      strokeOpacity={0.32}
+      strokeWidth={1}
+    />
+  );
+}
+
+function HardwareCardSlot({
+  id,
+  setCardEl,
+  children,
+}: {
+  id: PartId;
+  setCardEl: (id: PartId, el: HTMLDivElement | null) => void;
+  children: ReactNode;
+}) {
+  const ref = useCallback((el: HTMLDivElement | null) => setCardEl(id, el), [id, setCardEl]);
+  return (
+    <div
+      ref={ref}
+      className="pointer-events-auto invisible absolute top-0 left-0 opacity-0"
+      style={{ willChange: 'transform, opacity' }}
+    >
+      {children}
+    </div>
+  );
 }
 
 export function CalloutLayer({ api, progressRef, locale, quotes }: CalloutLayerProps) {
@@ -141,6 +216,11 @@ export function CalloutLayer({ api, progressRef, locale, quotes }: CalloutLayerP
   // keep the same `part.id` key below, so React doesn't remount them.
   const parts = useMemo(() => activePartsFor(chapterId, cap), [chapterId, cap]);
   const chapter = CHAPTERS[chapterId];
+  // Mirrors copy-panel.tsx's own `alignRight = i % 2 === 1`, using this
+  // component's own resolved chapter index — the edge a co-mounted copy
+  // panel would render on for the currently active chapter, so the layout
+  // loop below knows which column to steer around COPY_PANEL_BAND.
+  const copyPanelSide: Side = chapterId % 2 === 1 ? 'right' : 'left';
 
   // Per-part DOM refs + measured sizes, keyed by PartId. Plain mutable state
   // (never React state) — populated/cleared as cards mount/unmount via the
@@ -225,6 +305,12 @@ export function CalloutLayer({ api, progressRef, locale, quotes }: CalloutLayerP
 
       const layoutColumn = (entries: Candidate[], side: Side) => {
         entries.sort((a, b) => a.y - b.y);
+        // Only the column on copy-panel.tsx's own current-chapter side needs
+        // to dodge its footprint — the opposite column never has a visible
+        // copy panel to collide with (see COPY_PANEL_BAND above).
+        const avoidBand = side === copyPanelSide;
+        const bandTop = H * COPY_PANEL_BAND.top;
+        const bandBottom = H * COPY_PANEL_BAND.bottom;
         let cursor = MARGIN_TOP;
         for (const entry of entries) {
           let top = entry.y - entry.size.h / 2;
@@ -235,6 +321,21 @@ export function CalloutLayer({ api, progressRef, locale, quotes }: CalloutLayerP
           // slots still never overlap, at the cost of overflowing past
           // MARGIN_BOTTOM in that (rare, ≤5-card) edge case.
           if (top < cursor) top = cursor;
+          if (avoidBand && top < bandBottom && top + entry.size.h > bandTop) {
+            // This slot would land inside copy-panel.tsx's active-chapter
+            // text footprint on this side — push it below the band first
+            // (this column's natural top-to-bottom stacking order), falling
+            // back above the band only when there's no room below. If
+            // neither fits, leave `top` as computed: the same accepted
+            // overlap trade-off as the cursor-overflow case above.
+            const below = clamp(Math.max(top, bandBottom), cursor, H - MARGIN_BOTTOM - entry.size.h);
+            if (below >= bandBottom) {
+              top = below;
+            } else {
+              const above = bandTop - entry.size.h;
+              if (above >= cursor) top = above;
+            }
+          }
           cursor = top + entry.size.h + GAP_Y;
 
           const cardEl = cardEls.current.get(entry.part.id);
@@ -268,7 +369,7 @@ export function CalloutLayer({ api, progressRef, locale, quotes }: CalloutLayerP
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [api, progressRef, parts, chapter]);
+  }, [api, progressRef, parts, chapter, copyPanelSide]);
 
   return (
     <>
@@ -281,30 +382,23 @@ export function CalloutLayer({ api, progressRef, locale, quotes }: CalloutLayerP
         focusable="false"
       >
         {parts.map((part) => (
-          <line
-            key={part.id}
-            ref={(el) => setLineEl(part.id, el)}
-            className="invisible opacity-0"
-            stroke="var(--foreground)"
-            strokeOpacity={0.32}
-            strokeWidth={1}
-          />
+          <LeaderLineSlot key={part.id} id={part.id} setLineEl={setLineEl} />
         ))}
       </svg>
 
       {/* Hardware cards — one per current candidate. Mount/unmount only when
        * `parts` changes identity (chapter or density-cap change); position,
-       * opacity and visibility are all owned by the layout effect above. */}
-      <div className="pointer-events-none fixed inset-0 z-[8]">
+       * opacity and visibility are all owned by the layout effect above.
+       * z-[9] — strictly above copy-panel.tsx's chapter-copy overlay
+       * (z-[8]), which shares this same fixed-inset-0 space: interactive,
+       * pointer-events-auto cards should reliably paint over static copy
+       * text rather than relying on DOM/mount order at an equal z-index.
+       * See COPY_PANEL_BAND above for the complementary spatial nudge. */}
+      <div className="pointer-events-none fixed inset-0 z-[9]">
         {parts.map((part) => (
-          <div
-            key={part.id}
-            ref={(el) => setCardEl(part.id, el)}
-            className="pointer-events-auto invisible absolute top-0 left-0 opacity-0"
-            style={{ willChange: 'transform, opacity' }}
-          >
+          <HardwareCardSlot key={part.id} id={part.id} setCardEl={setCardEl}>
             <HardwareCard part={part} quotes={quotes} locale={locale} />
-          </div>
+          </HardwareCardSlot>
         ))}
       </div>
     </>
