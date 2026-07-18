@@ -10,7 +10,8 @@
     "lint": "eslint",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "check:data": "tsx scripts/check-supply-chain.ts"
+    "check:data": "tsx scripts/check-supply-chain.ts",
+    "test": "pnpm check:data"
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",
