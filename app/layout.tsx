@@ -24,7 +24,8 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: '#0d1b2a',
+  // near-black --background token (Apple grammar); navy is stage-only now
+  themeColor: '#0b0d10',
 };
 
 export default async function RootLayout({
