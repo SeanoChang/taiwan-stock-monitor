@@ -13,7 +13,8 @@
     "check:data": "tsx scripts/check-supply-chain.ts",
     "check:parts": "tsx scripts/check-parts.ts",
     "check:timeline": "tsx scripts/check-timeline.ts",
-    "test": "pnpm check:data && pnpm check:parts && pnpm check:timeline"
+    "check:hardware": "tsx scripts/check-hardware.ts",
+    "test": "pnpm check:data && pnpm check:parts && pnpm check:timeline && pnpm check:hardware"
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",
