@@ -239,4 +239,109 @@ export const PACKAGE_TEST_COMPANIES: SCCompany[] = [
     role: l('Test sockets & boards', '測試座與測試板'),
     rel: [{ to: 'mediatek', label: l('socket supplier', '測試座供應商') }],
   },
+
+  // ---- 2026-07 upstream expansion ----
+  {
+    id: 'jentech3653',
+    cat: 'pkgmat',
+    name: 'Jentech Precision',
+    zh: '健策',
+    ticker: '3653',
+    exch: 'TWSE',
+    role: l(
+      'CoWoS/SoIC lids, stiffener rings, plated lids; NVIDIA Rubin MCL micro-channel-lid qualified',
+      'CoWoS/SoIC 均熱片・補強環・鍍金蓋板龍頭；輝達 Rubin MCL 微通道蓋板認證',
+    ),
+    rel: [
+      { to: 'nvidia', label: l('lid / heat-spreader supplier', '蓋板／均熱片供應商') },
+      { to: 'tsmc', label: l('advanced-packaging materials', '先進封裝材料') },
+    ],
+  },
+  {
+    id: 'changwah8070',
+    cat: 'pkgmat',
+    name: 'Chang Wah Technology',
+    zh: '長華',
+    ticker: '8070',
+    exch: 'TWSE',
+    role: l(
+      'Packaging-material distribution leader (Sumitomo EMC sole agent); material used in CoWoS',
+      '封裝材料通路龍頭（住友培科 EMC 總代理）；材料已用於 CoWoS',
+    ),
+    rel: [
+      { to: 'ase', label: l('EMC distributor', 'EMC 通路') },
+      { to: 'tsmc', label: l('packaging-material supply', '封裝材料供應') },
+    ],
+  },
+  {
+    id: 'matek3587',
+    cat: 'testlab',
+    name: 'Materials Analysis Technology',
+    zh: '閎康',
+    ticker: '3587',
+    exch: 'TPEx',
+    role: l(
+      'Materials analysis (MA) / failure analysis (FA); benefits from 2nm & silicon-photonics validation',
+      '材料分析 MA／故障分析 FA（2nm／矽光子驗證受惠）',
+    ),
+    rel: [
+      { to: 'tsmc', label: l('analysis lab', '檢測實驗室') },
+      { to: 'ase', label: l('analysis lab', '檢測實驗室') },
+    ],
+  },
+  {
+    id: 'istgroup3289',
+    cat: 'testlab',
+    name: 'iST (Integrated Service Technology)',
+    zh: '宜特',
+    ticker: '3289',
+    exch: 'TPEx',
+    role: l('Reliability validation (RA) / IC testing', '可靠度驗證 RA／IC 測試'),
+    rel: [
+      { to: 'tsmc', label: l('reliability lab', '可靠度實驗室') },
+      { to: 'ase', label: l('reliability lab', '可靠度實驗室') },
+    ],
+  },
+  {
+    id: 'msscorp6830',
+    cat: 'testlab',
+    name: 'Materials Solution & Service',
+    zh: '汎銓科技',
+    ticker: '6830',
+    exch: 'TWSE',
+    role: l(
+      'MA >80% of revenue; tier-1 AI customer runs a dedicated R&D zone in its lab; silicon-photonics loss metrology',
+      'MA >80% 營收；全球 tier-1 AI 客戶在其實驗室設專屬 R&D 區；矽光子光損量測',
+    ),
+    rel: [
+      { to: 'tsmc', label: l('analysis lab', '檢測實驗室') },
+      { to: 'nvidia', label: l('analysis lab', '檢測實驗室') },
+    ],
+  },
+  {
+    id: 'weihua3055',
+    cat: 'glasspkg',
+    name: 'Weihua Technology',
+    zh: '蔚華科技',
+    ticker: '3055',
+    exch: 'TWSE',
+    role: l(
+      'Only market non-destructive TGV inspection across glass-substrate stages (SP8000G); CPO test via subsidiary',
+      'SP8000G 市場唯一玻璃基板 TGV 各階段非破壞檢測；子公司整合 CPO 測試',
+    ),
+    rel: [{ to: 'tsmc', label: l('glass-substrate inspection', '玻璃基板檢測') }],
+  },
+  {
+    id: 'vpec6789',
+    cat: 'glasspkg',
+    name: 'VisEra Technologies',
+    zh: '采鈺',
+    ticker: '6789',
+    exch: 'TWSE',
+    role: l(
+      'TSMC-invested; hosts the CoPoS mini pilot line (2026)',
+      '台積電轉投資；承接 CoPoS mini 試產線（2026）',
+    ),
+    rel: [{ to: 'tsmc', label: l('CoPoS pilot line', 'CoPoS 試產線') }],
+  },
 ];
