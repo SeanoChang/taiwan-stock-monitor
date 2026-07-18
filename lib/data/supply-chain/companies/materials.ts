@@ -215,4 +215,55 @@ export const MATERIALS_COMPANIES: SCCompany[] = [
       { to: 'trusval', label: l('delivery-system partner', '輸送系統夥伴') },
     ],
   },
+
+  // ---- 2026-07 upstream expansion ----
+  {
+    id: 'sungsheng7768',
+    cat: 'cmp',
+    name: 'Sungsheng Technology',
+    zh: '頌勝科技',
+    ticker: '7768',
+    exch: 'TWSE',
+    role: l(
+      "Taiwan's only volume CMP polishing-pad maker; in TSMC's chain via subsidiary iVT",
+      '全台唯一量產 CMP 研磨墊，經子公司智勝 iVT 進入台積電鏈',
+    ),
+    rel: [{ to: 'tsmc', label: l('CMP pad supplier', 'CMP 研磨墊供應商') }],
+  },
+  {
+    id: 'baoteck5340',
+    cat: 'glass',
+    name: 'Bao Teck',
+    zh: '建榮',
+    ticker: '5340',
+    exch: 'TPEx',
+    role: l(
+      'Nittobo affiliate (47.65% held); closest listed proxy to the T-glass cloth monopoly, booked to 2027',
+      '日東紡持股 47.65% 的關係企業，最貼近 T-glass 玻纖布獨占者，接單滿至 2027',
+    ),
+  },
+  {
+    id: 'dehong5475',
+    cat: 'glass',
+    name: 'Dehong',
+    zh: '德宏',
+    ticker: '5475',
+    exch: 'TPEx',
+    role: l(
+      'Only listed Taiwan maker of electronic-grade quartz-fiber yarn/cloth (Rubin-gen low-Df M9/Q)',
+      '台灣唯一電子級石英纖維紗／布，Rubin 世代 M9/Q 低 Df 布',
+    ),
+  },
+  {
+    id: 'nanpao4766',
+    cat: 'chem',
+    name: 'Nan Pao Resins',
+    zh: '南寶',
+    ticker: '4766',
+    exch: 'TWSE',
+    role: l(
+      'JV cutting into TSMC advanced-packaging UV debonding / adhesive materials',
+      '與新應材／信紘科合資，切入台積電先進封裝 UV 解膠／膠黏材料',
+    ),
+  },
 ];
