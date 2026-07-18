@@ -58,6 +58,12 @@ for (const c of COMPANIES) {
     err(`company ${c.id}: 興櫃 ticker ${c.ticker} must not use exch ${c.exch}`);
   }
 }
+// 9. unique tickers (the quote join keys on ticker)
+const seenTicker = new Set<string>();
+for (const c of COMPANIES) {
+  if (seenTicker.has(c.ticker)) err(`duplicate ticker: ${c.ticker} (company ${c.id})`);
+  seenTicker.add(c.ticker);
+}
 
 if (errors.length) {
   console.error(`✗ supply-chain integrity: ${errors.length} problem(s)`);

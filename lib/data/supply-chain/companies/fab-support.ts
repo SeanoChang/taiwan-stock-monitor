@@ -522,7 +522,7 @@ export const FAB_SUPPORT_COMPANIES: SCCompany[] = [
   {
     id: 'raytech7703',
     cat: 'fabbuild',
-    name: 'Rayzher Industrial',
+    name: 'Ruize Industrial',
     zh: '銳澤實業',
     ticker: '7703',
     exch: 'TPEx',
