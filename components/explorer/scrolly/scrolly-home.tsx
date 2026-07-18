@@ -135,14 +135,21 @@ export function ScrollyHome({ locale, copy, brand, tools, accent }: ScrollyHomeP
   }, []);
 
   const scrollToChapter = useCallback(
-    (i: number) => {
+    // `behaviorOverride` lets the deep-link mount effect below supply a
+    // freshly-read `prefers-reduced-motion` value instead of trusting this
+    // callback's closed-over `reducedMotion` state — see that effect's
+    // comment for why the state alone isn't safe there.
+    (i: number, behaviorOverride?: ScrollBehavior) => {
       const wrapper = wrapperRef.current;
       if (!wrapper) return;
       const ch = CHAPTERS[Math.max(0, Math.min(LAST_CHAPTER, i))];
       const rect = wrapper.getBoundingClientRect();
       const span = Math.max(1, wrapper.offsetHeight - window.innerHeight);
       const targetY = window.scrollY + rect.top + ch.p0 * span;
-      window.scrollTo({ top: targetY, behavior: reducedMotion ? 'auto' : 'smooth' });
+      window.scrollTo({
+        top: targetY,
+        behavior: behaviorOverride ?? (reducedMotion ? 'auto' : 'smooth'),
+      });
     },
     [reducedMotion],
   );
@@ -157,15 +164,32 @@ export function ScrollyHome({ locale, copy, brand, tools, accent }: ScrollyHomeP
   // Deep link: /#ch-N scrolls to chapter N once mounted. A short delay lets
   // the ~800vh wrapper (and the lazily-mounted 3D canvas that can reflow the
   // page) settle before the jump is computed.
+  //
+  // Reduced-motion fix (review finding): this is a one-shot, mount-only
+  // effect (empty deps — it must not re-fire on later renders). Its closure
+  // over `scrollToChapter` is frozen from the very first render, where
+  // `reducedMotion` state is still its initial `false` — the sibling
+  // `prefers-reduced-motion` matchMedia effect above hasn't had a chance to
+  // flip it yet (a setState inside an effect doesn't synchronously re-render
+  // before sibling effects in the same mount flush finish). Passing that
+  // stale `reducedMotion` through would make `/#ch-N` always animate on
+  // first load, even under `prefers-reduced-motion: reduce`. Reading
+  // `matchMedia` directly here (fresh, not through state) and passing it as
+  // an explicit override sidesteps the stale closure entirely.
   useEffect(() => {
     const m = /^#ch-(\d+)$/.exec(window.location.hash);
     if (!m) return;
     const i = Number(m[1]);
     if (!Number.isFinite(i)) return;
-    const id = window.setTimeout(() => scrollToChapter(i), 60);
+    const behavior: ScrollBehavior = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+      ? 'auto'
+      : 'smooth';
+    const id = window.setTimeout(() => scrollToChapter(i, behavior), 60);
     return () => window.clearTimeout(id);
-    // Read once on mount; scrollToChapter's identity changing with
-    // reducedMotion shouldn't re-trigger the jump.
+    // Read hash + matchMedia once on mount; scrollToChapter's identity
+    // changing with reducedMotion shouldn't re-trigger the jump (the
+    // explicit `behavior` override above makes that identity irrelevant to
+    // correctness here anyway).
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
