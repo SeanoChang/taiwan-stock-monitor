@@ -36,7 +36,8 @@ for (const c of CATEGORIES) {
 }
 // 4. every category.feeds target resolves to a category
 for (const c of CATEGORIES) {
-  for (const f of c.feeds) if (!CAT_IDS.has(f)) err(`category ${c.id}: feeds unknown category "${f}"`);
+  for (const f of c.feeds)
+    if (!CAT_IDS.has(f)) err(`category ${c.id}: feeds unknown category "${f}"`);
 }
 // 5. every company.cat resolves to a category
 for (const c of COMPANIES) {
@@ -44,7 +45,8 @@ for (const c of COMPANIES) {
 }
 // 6. every rel.to resolves to a company
 for (const c of COMPANIES) {
-  for (const r of c.rel ?? []) if (!COMPANY_IDS.has(r.to)) err(`company ${c.id}: rel → unknown company "${r.to}"`);
+  for (const r of c.rel ?? [])
+    if (!COMPANY_IDS.has(r.to)) err(`company ${c.id}: rel → unknown company "${r.to}"`);
 }
 // 7. no delisted ticker present
 for (const c of COMPANIES) {
@@ -62,4 +64,6 @@ if (errors.length) {
   for (const e of errors) console.error('  - ' + e);
   process.exit(1);
 }
-console.log(`✓ supply-chain integrity OK — ${COMPANIES.length} companies, ${CATEGORIES.length} categories`);
+console.log(
+  `✓ supply-chain integrity OK — ${COMPANIES.length} companies, ${CATEGORIES.length} categories`,
+);
