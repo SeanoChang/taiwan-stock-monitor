@@ -221,4 +221,22 @@ export const BOARD_COMPANIES: SCCompany[] = [
     ),
     rel: [{ to: 'accton', label: l('timing devices', '時脈元件供應') }],
   },
+
+  // ---- 2026-07 upstream expansion ----
+  {
+    id: 'kaiwai5498',
+    cat: 'pcb',
+    name: 'Kinwong (Kaiwai Electronics)',
+    zh: '凱崴電子',
+    ticker: '5498',
+    exch: 'TPEx',
+    role: l(
+      'Second-source micro-drill maker riding the AI/ABF drill shortage; 20-year revenue high 2026-06',
+      '第二受惠鑽針廠（AI/ABF 缺針潮）；2026/6 營收 20 年高',
+    ),
+    rel: [
+      { to: 'unimicron', label: l('micro-drill supplier', '鑽針供應商') },
+      { to: 'gce', label: l('micro-drill supplier', '鑽針供應商') },
+    ],
+  },
 ];
