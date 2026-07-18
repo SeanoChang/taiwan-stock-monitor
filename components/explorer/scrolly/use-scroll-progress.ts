@@ -37,6 +37,46 @@ export interface ScrollProgress {
 
 const clamp01 = (v: number) => Math.min(1, Math.max(0, v));
 
+// ---- Shared scroll→progress math + scrollToChapter (review finding) ----
+// Both this hook's own reduced-motion fallback AND scrolly-home.tsx's
+// `useHeroProgress`/`scrollToChapter` need the exact same "raw scroll
+// fraction across a ~900vh wrapper" arithmetic (scrolly-home.tsx can't reuse
+// this hook's progressRef itself — see that file's module doc for why — but
+// there's no reason the *math* should be duplicated too). Exporting these
+// two pure helpers gives every call site one source of truth for the
+// formula instead of three copies that could silently drift apart.
+
+/** The raw scroll fraction across `wrapper`'s pinned span: 0 while its top
+ * edge is at the viewport top, 1 once its bottom edge reaches the viewport
+ * bottom. Pure function of the wrapper's current layout + scroll position —
+ * safe to call from any rAF loop. */
+export function measureScrollFraction(wrapper: HTMLElement): number {
+  const rect = wrapper.getBoundingClientRect();
+  const span = Math.max(1, rect.height - window.innerHeight);
+  return clamp01(-rect.top / span);
+}
+
+/** The absolute page Y offset that scrolls `wrapper` so chapter `i`'s p0
+ * lands at the top of the viewport. */
+export function chapterScrollTarget(wrapper: HTMLElement, i: number): number {
+  const ch = CHAPTERS[Math.max(0, Math.min(CHAPTERS.length - 1, i))];
+  const rect = wrapper.getBoundingClientRect();
+  const span = Math.max(1, wrapper.offsetHeight - window.innerHeight);
+  return window.scrollY + rect.top + ch.p0 * span;
+}
+
+/** Scrolls `wrapper` to chapter `i`'s start offset with the given behavior
+ * (smooth normally, `'auto'` under prefers-reduced-motion or an explicit
+ * override). Shared by this hook's own `scrollToChapter` and
+ * scrolly-home.tsx's duplicate implementation. */
+export function scrollToChapterImpl(
+  wrapper: HTMLElement,
+  i: number,
+  behavior: ScrollBehavior,
+): void {
+  window.scrollTo({ top: chapterScrollTarget(wrapper, i), behavior });
+}
+
 /**
  * @param wrapperRef the ~900vh scroll spacer that owns this hero (Task 5's
  * `scrolly-home.tsx`); `.scrolly-stage` (rendered by `ScrollyStage`, a
@@ -68,9 +108,7 @@ export function useScrollProgress(wrapperRef: RefObject<HTMLElement | null>): Sc
       // and-keyframes.md's documented native rAF + getBoundingClientRect path.
       let raf = 0;
       const measure = () => {
-        const rect = wrapper.getBoundingClientRect();
-        const span = Math.max(1, rect.height - window.innerHeight);
-        progressRef.current = clamp01(-rect.top / span);
+        progressRef.current = measureScrollFraction(wrapper);
         raf = requestAnimationFrame(measure);
       };
       raf = requestAnimationFrame(measure);
@@ -101,11 +139,7 @@ export function useScrollProgress(wrapperRef: RefObject<HTMLElement | null>): Sc
     (i: number) => {
       const wrapper = wrapperRef.current;
       if (!wrapper) return;
-      const ch = CHAPTERS[Math.max(0, Math.min(CHAPTERS.length - 1, i))];
-      const rect = wrapper.getBoundingClientRect();
-      const span = Math.max(1, wrapper.offsetHeight - window.innerHeight);
-      const targetY = window.scrollY + rect.top + ch.p0 * span;
-      window.scrollTo({ top: targetY, behavior: reducedMotion ? 'auto' : 'smooth' });
+      scrollToChapterImpl(wrapper, i, reducedMotion ? 'auto' : 'smooth');
     },
     [wrapperRef, reducedMotion],
   );

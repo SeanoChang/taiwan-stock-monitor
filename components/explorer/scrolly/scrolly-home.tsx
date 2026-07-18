@@ -20,20 +20,22 @@
 // (`app/page.tsx` + this file only — see task-5-report.md's Scope note).
 //
 // Instead, `useHeroProgress` below independently re-derives the SAME raw
-// scroll fraction ScrollyStage's own GSAP instance uses internally. Reading
+// scroll fraction ScrollyStage's own GSAP instance uses internally, via
+// `measureScrollFraction` (components/explorer/scrolly/use-scroll-progress.ts
+// — review finding: the *math* is a single shared helper now, even though the
+// progress *ref* itself still can't be lifted, for the reason above). Reading
 // gsap's ScrollTrigger source (node_modules/gsap/ScrollTrigger.js) confirms
 // `self.progress` is assigned the immediate, unsmoothed `clipped` scroll
 // fraction on every tick (`self.progress = clipped`); `scrub` only smooths an
 // internal placeholder tween used for pin/onUpdate cadence, never the
-// reported progress value itself. So this hook's `-rect.top / span` formula —
-// the same one use-scroll-progress.ts's own reduced-motion fallback already
-// uses — is numerically equivalent to what drives ScrollyStage's poses, with
-// no desync and without ever creating a second pin.
+// reported progress value itself. So `measureScrollFraction`'s `-rect.top /
+// span` formula is numerically equivalent to what drives ScrollyStage's
+// poses, with no desync and without ever creating a second pin.
 //
-// `scrollToChapter` below is likewise a deliberate, small duplication of
-// use-scroll-progress.ts's own implementation (ScrollyStage doesn't expose its
-// instance either) — same reasoning, documented once here rather than at
-// each call site.
+// `scrollToChapter` below likewise calls the same `scrollToChapterImpl`
+// helper use-scroll-progress.ts's own `scrollToChapter` uses (ScrollyStage
+// doesn't expose its hook instance either, so this file still needs its own
+// callback wrapper — just not its own copy of the underlying math).
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ReactNode, RefObject } from 'react';
@@ -44,6 +46,10 @@ import { Button, buttonVariants } from '@/components/ui/button';
 import { ScrollyStage } from '@/components/explorer/scrolly/scrolly-stage';
 import { ChapterRail } from '@/components/explorer/scrolly/chapter-rail';
 import { CopyPanels } from '@/components/explorer/scrolly/copy-panel';
+import {
+  measureScrollFraction,
+  scrollToChapterImpl,
+} from '@/components/explorer/scrolly/use-scroll-progress';
 import type { ExplorerCopy } from '@/components/explorer/explorer-copy';
 import { CHAPTERS } from '@/lib/scene/disassembly-timeline';
 import { clamp01, range } from '@/lib/scene/scroll-math';
@@ -92,11 +98,7 @@ function useHeroProgress(wrapperRef: RefObject<HTMLDivElement | null>, paused: b
     let raf = 0;
     const measure = () => {
       const wrapper = wrapperRef.current;
-      if (wrapper) {
-        const rect = wrapper.getBoundingClientRect();
-        const span = Math.max(1, rect.height - window.innerHeight);
-        progressRef.current = clamp01(-rect.top / span);
-      }
+      if (wrapper) progressRef.current = measureScrollFraction(wrapper);
       raf = requestAnimationFrame(measure);
     };
     raf = requestAnimationFrame(measure);
@@ -142,14 +144,7 @@ export function ScrollyHome({ locale, copy, brand, tools, accent }: ScrollyHomeP
     (i: number, behaviorOverride?: ScrollBehavior) => {
       const wrapper = wrapperRef.current;
       if (!wrapper) return;
-      const ch = CHAPTERS[Math.max(0, Math.min(LAST_CHAPTER, i))];
-      const rect = wrapper.getBoundingClientRect();
-      const span = Math.max(1, wrapper.offsetHeight - window.innerHeight);
-      const targetY = window.scrollY + rect.top + ch.p0 * span;
-      window.scrollTo({
-        top: targetY,
-        behavior: behaviorOverride ?? (reducedMotion ? 'auto' : 'smooth'),
-      });
+      scrollToChapterImpl(wrapper, i, behaviorOverride ?? (reducedMotion ? 'auto' : 'smooth'));
     },
     [reducedMotion],
   );
@@ -269,7 +264,7 @@ export function ScrollyHome({ locale, copy, brand, tools, accent }: ScrollyHomeP
               size="icon-sm"
               onClick={() => stepChapter(-1)}
               aria-label={pick(PREV_CHAPTER, locale)}
-              className="ss-veil pointer-events-auto fixed top-1/2 left-4 z-30 -translate-y-1/2 rounded-full"
+              className="ss-veil pointer-events-auto fixed top-1/2 left-4 z-30 min-h-11 min-w-11 -translate-y-1/2 rounded-full"
             >
               <ChevronLeft className="size-4" />
             </Button>
@@ -278,7 +273,7 @@ export function ScrollyHome({ locale, copy, brand, tools, accent }: ScrollyHomeP
               size="icon-sm"
               onClick={() => stepChapter(1)}
               aria-label={pick(NEXT_CHAPTER, locale)}
-              className="ss-veil pointer-events-auto fixed top-1/2 right-4 z-30 -translate-y-1/2 rounded-full"
+              className="ss-veil pointer-events-auto fixed top-1/2 right-4 z-30 min-h-11 min-w-11 -translate-y-1/2 rounded-full"
             >
               <ChevronRight className="size-4" />
             </Button>
@@ -292,17 +287,23 @@ export function ScrollyHome({ locale, copy, brand, tools, accent }: ScrollyHomeP
         >
           <Link
             href="/supply-chain"
-            className={cn(buttonVariants({ variant: 'outline', size: 'sm' }), 'rounded-full')}
+            className={cn(
+              buttonVariants({ variant: 'outline', size: 'sm' }),
+              'min-h-11 rounded-full',
+            )}
           >
             {pick(CTA_GRAPH, locale)}
           </Link>
           <Link
             href="/market"
-            className={cn(buttonVariants({ variant: 'outline', size: 'sm' }), 'rounded-full')}
+            className={cn(
+              buttonVariants({ variant: 'outline', size: 'sm' }),
+              'min-h-11 rounded-full',
+            )}
           >
             {pick(CTA_MARKET, locale)}
           </Link>
-          <Button onClick={handleHandoff} size="sm" className="rounded-full">
+          <Button onClick={handleHandoff} size="sm" className="min-h-11 rounded-full">
             {pick(CTA_EXPLORE, locale)}
           </Button>
         </div>

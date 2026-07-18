@@ -25,9 +25,11 @@
 import { useEffect, useRef, useState } from 'react';
 import type { RefObject } from 'react';
 import { CHAPTERS } from '@/lib/scene/disassembly-timeline';
-import { pick } from '@/lib/i18n/config';
+import { l, pick } from '@/lib/i18n/config';
 import type { Locale } from '@/lib/i18n/config';
 import { cn } from '@/lib/utils';
+
+const CHAPTERS_LABEL = l('Chapters', '章節');
 
 export interface ChapterRailProps {
   /** p ∈ [0,1]; written by useScrollProgress's GSAP/rAF source, read here via
@@ -75,10 +77,14 @@ export function ChapterRail({ progressRef, scrollToChapter, locale, hidden }: Ch
 
   return (
     <>
-      {/* Desktop (≥sm): right-edge vertical dot rail. */}
+      {/* Desktop (≥sm): right-edge vertical dot rail. Each button's hit area
+       * is a ≥44px square (min-h-11 min-w-11, Apple HIG's minimum tap
+       * target) even though the visual dot inside stays a small 7px mark —
+       * the gap between buttons is trimmed to gap-1 so the enlarged hit
+       * areas don't blow up the rail's total height. */}
       <nav
-        aria-label="chapters"
-        className="ss-veil pointer-events-auto fixed top-1/2 right-6 z-10 hidden -translate-y-1/2 flex-col items-center gap-3 rounded-full border px-2.5 py-4 sm:flex"
+        aria-label={pick(CHAPTERS_LABEL, locale)}
+        className="ss-veil pointer-events-auto fixed top-1/2 right-6 z-10 hidden -translate-y-1/2 flex-col items-center gap-1 rounded-full border px-2.5 py-4 sm:flex"
       >
         {CHAPTERS.map((ch, i) => {
           const isActive = i === active;
@@ -90,7 +96,7 @@ export function ChapterRail({ progressRef, scrollToChapter, locale, hidden }: Ch
               title={pick(ch.eyebrow, locale)}
               aria-label={pick(ch.eyebrow, locale)}
               aria-current={isActive ? 'step' : undefined}
-              className="group flex items-center justify-center p-1"
+              className="group flex min-h-11 min-w-11 items-center justify-center"
             >
               <span
                 className={cn(
@@ -105,10 +111,14 @@ export function ChapterRail({ progressRef, scrollToChapter, locale, hidden }: Ch
         })}
       </nav>
 
-      {/* Mobile (<sm): slim bottom strip, same dots, horizontal. */}
+      {/* Mobile (<sm): slim bottom strip, same dots, horizontal. Same ≥44px
+       * hit-area treatment as the desktop rail above; `overflow-x-auto` lets
+       * the strip scroll horizontally instead of overflowing the viewport
+       * now that 8 chapters' worth of 44px-wide buttons no longer fit
+       * within `max-w-[calc(100%-32px)]` on narrow phones. */}
       <nav
-        aria-label="chapters"
-        className="ss-veil pointer-events-auto fixed inset-x-0 bottom-4 z-10 mx-auto flex w-fit max-w-[calc(100%-32px)] items-center gap-2.5 rounded-full border px-4 py-2.5 sm:hidden"
+        aria-label={pick(CHAPTERS_LABEL, locale)}
+        className="ss-veil pointer-events-auto fixed inset-x-0 bottom-4 z-10 mx-auto flex w-fit max-w-[calc(100%-32px)] items-center gap-1 overflow-x-auto rounded-full border px-4 py-2.5 sm:hidden"
       >
         {CHAPTERS.map((ch, i) => {
           const isActive = i === active;
@@ -120,7 +130,7 @@ export function ChapterRail({ progressRef, scrollToChapter, locale, hidden }: Ch
               title={pick(ch.eyebrow, locale)}
               aria-label={pick(ch.eyebrow, locale)}
               aria-current={isActive ? 'step' : undefined}
-              className="flex items-center justify-center p-1"
+              className="flex min-h-11 min-w-11 flex-none items-center justify-center"
             >
               <span
                 className={cn(

@@ -2,7 +2,13 @@
 // scroll-math.ts and disassembly-timeline.ts are plain arithmetic over p.
 // Run: pnpm check:timeline
 import { clamp01, range, curve } from '../lib/scene/scroll-math';
-import { evaluate, evalCamera, CHAPTERS, activeLevelFor } from '../lib/scene/disassembly-timeline';
+import {
+  evaluate,
+  evalCamera,
+  CHAPTERS,
+  activeLevelFor,
+  CAMERA_TRACK,
+} from '../lib/scene/disassembly-timeline';
 
 const errors: string[] = [];
 const err = (m: string) => errors.push(m);
@@ -38,6 +44,31 @@ if (Math.abs(prev - 1) > 1e-9) err('chapters do not end at 1');
 for (const p of [0, 0.3, 0.7, 0.9, 1]) {
   const lv = activeLevelFor(p);
   if (lv < 0 || lv > 3) err(`activeLevelFor(${p})=${lv} out of range`);
+}
+
+// camera continuity: each CAMERA_TRACK segment's `to` must deep-equal the
+// next segment's `from` — no pop/discontinuity at a chapter boundary.
+for (let i = 0; i < CAMERA_TRACK.length - 1; i++) {
+  const to = CAMERA_TRACK[i].to;
+  const from = CAMERA_TRACK[i + 1].from;
+  const eq =
+    Math.abs(to.r - from.r) < 1e-9 &&
+    Math.abs(to.theta - from.theta) < 1e-9 &&
+    Math.abs(to.phi - from.phi) < 1e-9 &&
+    to.target.every((v, k) => Math.abs(v - from.target[k]) < 1e-9);
+  if (!eq) err(`camera discontinuity: CAMERA_TRACK[${i}].to != CAMERA_TRACK[${i + 1}].from`);
+}
+
+// chapter/level lock-step: each chapter's declared `level` must match
+// activeLevelFor() at its own midpoint — the copy panel and the 3D level
+// that's actually visible can never disagree about which "zoom level" p is
+// in.
+for (const ch of CHAPTERS) {
+  const mid = (ch.p0 + ch.p1) / 2;
+  const lv = activeLevelFor(mid);
+  if (lv !== ch.level) {
+    err(`chapter ${ch.id}: level ${ch.level} != activeLevelFor(midpoint)=${lv}`);
+  }
 }
 
 if (errors.length) {

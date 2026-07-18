@@ -33,6 +33,32 @@ import type { SceneApi } from '@/lib/scene/silicon-stack-scene';
 import { cn } from '@/lib/utils';
 
 const HANDOFF_LABEL = l('Free explore', '自由探索');
+const CHAPTERS_LABEL = l('Chapters', '章節');
+
+/** The chapter whose [p0,p1) window contains p — same rule as chapter-
+ * rail.tsx's own helper (duplicated: it isn't exported, and this is a few
+ * lines of pure, stateless arithmetic over the shared CHAPTERS table — see
+ * that file's comment for the fuller rationale for not sharing it). */
+function chapterIndexFor(p: number): number {
+  const clamped = p < 0 ? 0 : p > 1 ? 1 : p;
+  for (let i = CHAPTERS.length - 1; i >= 0; i--) {
+    if (clamped >= CHAPTERS[i].p0) return i;
+  }
+  return 0;
+}
+
+/** Reduced-motion review finding: rather than feed the scene the raw,
+ * continuously-changing scroll fraction (which still drives a continuous
+ * "dive" through evaluate(p)/evalCamera(p) even with no GSAP scrub), snap it
+ * to the REST position of whichever chapter's window it falls in — the
+ * midpoint of [p0,p1), deep in that chapter's keyframe "hold" phase (see
+ * disassembly-timeline.ts's holdEase). Scrolling under
+ * `prefers-reduced-motion: reduce` then steps discretely between each
+ * chapter's resting pose instead of animating continuously between them. */
+function nearestChapterRestP(p: number): number {
+  const ch = CHAPTERS[chapterIndexFor(p)];
+  return (ch.p0 + ch.p1) / 2;
+}
 
 export interface ScrollyStageProps {
   /** The ~900vh scroll spacer this stage pins inside of (Task 5's
@@ -56,11 +82,27 @@ export function ScrollyStage({ wrapperRef, locale, accent, onHandoff }: ScrollyS
 
   const { progressRef, scrollToChapter, reducedMotion } = useScrollProgress(wrapperRef);
 
+  // Live-read inside the mount-once effect's rAF loop below without adding
+  // `reducedMotion` as a dependency (which would tear down and recreate the
+  // whole scene on every prefers-reduced-motion change) — same ref-not-state
+  // pattern `progressRef` itself already uses, just for this one boolean.
+  const reducedMotionRef = useRef(reducedMotion);
+  useEffect(() => {
+    reducedMotionRef.current = reducedMotion;
+  }, [reducedMotion]);
+
   // Mount the scene exactly once, in `scrolly` mode, then push the progress
   // ref into it every frame via its own rAF loop — this is what keeps poses
   // smooth regardless of GSAP onUpdate's cadence (or the reduced-motion
   // fallback's), per the brief. Never calls setState from this loop; it only
   // ever writes to the scene's internal `scrollP`, a plain number.
+  //
+  // Reduced-motion review finding: under prefers-reduced-motion, `p` is
+  // snapped to the nearest chapter's rest position (nearestChapterRestP)
+  // before being handed to the scene, so scrolling steps discretely between
+  // chapters instead of continuously diving — the raw, continuous
+  // `progressRef` itself is left untouched (chapterIndexFor/scrollToChapter
+  // still read it directly) so this only changes what the *scene* sees.
   useEffect(() => {
     let cancelled = false;
     let raf = 0;
@@ -80,7 +122,10 @@ export function ScrollyStage({ wrapperRef, locale, accent, onHandoff }: ScrollyS
         api.setMode('scrolly');
         apiRef.current = api;
         const tick = () => {
-          api.setScrollProgress(progressRef.current);
+          const p = reducedMotionRef.current
+            ? nearestChapterRestP(progressRef.current)
+            : progressRef.current;
+          api.setScrollProgress(p);
           raf = requestAnimationFrame(tick);
         };
         raf = requestAnimationFrame(tick);
@@ -149,7 +194,7 @@ export function ScrollyStage({ wrapperRef, locale, accent, onHandoff }: ScrollyS
           variant="outline"
           size="sm"
           onClick={handleHandoff}
-          className="ss-veil pointer-events-auto absolute top-6 right-6 z-10 rounded-full text-xs font-semibold tracking-wide"
+          className="ss-veil pointer-events-auto absolute top-6 right-6 z-10 min-h-11 rounded-full text-xs font-semibold tracking-wide"
         >
           {pick(HANDOFF_LABEL, locale)}
         </Button>
@@ -159,7 +204,7 @@ export function ScrollyStage({ wrapperRef, locale, accent, onHandoff }: ScrollyS
        * stepped chapter strip sets discrete p via a direct scroll jump. */}
       {!handedOff && reducedMotion && (
         <nav
-          aria-label="chapters"
+          aria-label={pick(CHAPTERS_LABEL, locale)}
           className="ss-veil pointer-events-auto absolute inset-x-0 bottom-6 z-10 mx-auto flex w-fit max-w-[calc(100%-48px)] items-center gap-1 overflow-x-auto rounded-full border px-2 py-2"
         >
           {CHAPTERS.map((ch, i) => (
@@ -167,7 +212,7 @@ export function ScrollyStage({ wrapperRef, locale, accent, onHandoff }: ScrollyS
               key={ch.id}
               type="button"
               onClick={() => scrollToChapter(i)}
-              className="text-foreground/70 hover:text-foreground flex-none rounded-full px-3 py-1.5 text-xs font-semibold tracking-wide whitespace-nowrap transition-colors"
+              className="text-foreground/70 hover:text-foreground inline-flex min-h-11 flex-none items-center justify-center rounded-full px-3 py-1.5 text-xs font-semibold tracking-wide whitespace-nowrap transition-colors"
             >
               {pick(ch.eyebrow, locale)}
             </button>

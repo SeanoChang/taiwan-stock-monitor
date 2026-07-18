@@ -115,7 +115,6 @@ export function createScene(opts: SceneOptions): SceneApi {
   // evaluate(p)/evalCamera(p) timeline, so there is nothing to drift.
   let mode: SceneMode = 'explore';
   let scrollP = 0;
-  let wantAutoRotate = autoRotate !== false;
 
   const controls = createOrbitControls({
     el: renderer.domElement,
@@ -254,7 +253,6 @@ export function createScene(opts: SceneOptions): SceneApi {
       applyAccent(accents, ACC);
     },
     setAutoRotate(b: boolean) {
-      wantAutoRotate = b !== false;
       controls.setAutoRotate(b);
     },
     setLocale(loc: Locale) {
@@ -266,16 +264,16 @@ export function createScene(opts: SceneOptions): SceneApi {
     setMode(m: SceneMode) {
       if (mode === m) return;
       mode = m;
-      if (m === 'explore') {
-        // Handoff back to explore: every part must return to exactly its
-        // pre-Phase-C pose (goLevel/orbit/hotspots stay byte-identical) —
-        // reset the whole registry rather than trusting scrollP===0.
-        parts.ids().forEach((id) => parts.reset(id));
-        const lidObj = parts.get('lid');
-        if (lidObj) lidObj.visible = false;
-        applyLevel(cur);
-        controls.setAutoRotate(wantAutoRotate);
-      } else {
+      // 'explore' has no reset work here (review finding — dead branch
+      // removed): the only caller that hands off scrolly→explore
+      // (components/explorer/scrolly/scrolly-stage.tsx's handleHandoff)
+      // calls this immediately before unmounting ScrollyStage, which disposes
+      // this exact scene instance and mounts a brand-new one via
+      // use-scene.ts/SiliconStackExplorer — a fresh scene that starts every
+      // part at its registered base pose already, with nothing to reset. If
+      // a future caller ever flips scrolly→explore *without* disposing the
+      // scene, this branch would need to come back.
+      if (m === 'scrolly') {
         // Scrolly owns the camera every frame via applyDisassembly(); disable
         // auto-rotate/idle-drift and make sure no explore-mode level
         // transition is left mid-flight fighting for ctl state.
