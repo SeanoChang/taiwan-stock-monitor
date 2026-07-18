@@ -13,6 +13,7 @@ import {
   createGlowMaterials,
   createMaterials,
 } from '@/lib/scene/materials';
+import { ALL_PART_IDS, createPartRegistry } from '@/lib/scene/parts';
 import type { CamSpec, Level, LevelContext, SceneApi, SceneOptions } from '@/lib/scene/types';
 import type { Locale } from '@/lib/i18n/config';
 
@@ -64,7 +65,8 @@ export function createScene(opts: SceneOptions): SceneApi {
   const M = createMaterials();
   const { GLOW, GLOWDIM } = createGlowMaterials(ACC, accents);
   const { box, cyl, shadowDisc } = createGeometryHelpers(scene);
-  const ctx: LevelContext = { M, GLOW, GLOWDIM, ACC, accents, box, cyl, shadowDisc };
+  const parts = createPartRegistry();
+  const ctx: LevelContext = { M, GLOW, GLOWDIM, ACC, accents, box, cyl, shadowDisc, parts };
 
   const levels: Level[] = LEVEL_BUILDERS.map((build) => {
     const group = new THREE.Group();
@@ -81,6 +83,11 @@ export function createScene(opts: SceneOptions): SceneApi {
     build(group, lv, ctx);
     return lv;
   });
+
+  if (process.env.NODE_ENV !== 'production') {
+    const missing = ALL_PART_IDS.filter((id) => !parts.has(id));
+    if (missing.length) console.warn('[scene] unregistered PartIds:', missing.join(', '));
+  }
 
   // ---------- hotspot DOM ----------
   mountHotspots(levels, layer, LOCALE, {
@@ -195,6 +202,8 @@ export function createScene(opts: SceneOptions): SceneApi {
       LOCALE = loc;
       setHotspotLocale(levels, LOCALE);
     },
+    applyPose: (id, pose) => parts.applyPose(id, pose),
+    getPart: (id) => parts.get(id),
     dispose() {
       disposed = true;
       renderer.dispose();

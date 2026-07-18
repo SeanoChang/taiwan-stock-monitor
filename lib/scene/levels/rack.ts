@@ -39,7 +39,10 @@ export function buildRackLevel(g: THREE.Group, lv: Level, ctx: LevelContext) {
     box(0.7, 0.06, 1.08, M.steel, 0, 2.09, 0, r);
     return r;
   }
-  [-2.7, -1.35, 0, 1.35, 2.7].forEach((x, i) => rack(x, i === 2));
+  [-2.7, -1.35, 0, 1.35, 2.7].forEach((x, i) => {
+    const r = rack(x, i === 2);
+    if (i === 2) ctx.parts?.register('rack', r);
+  });
   // CDU cooling unit
   box(0.85, 1.7, 0.95, M.steel, 4.15, 0.85, 0);
   cyl(0.045, 0.045, 1.7, M.silver, 3.85, 0.85, 0.3, g);
