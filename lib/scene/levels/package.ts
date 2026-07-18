@@ -3,7 +3,7 @@
 
 import * as THREE from 'three';
 import { hs, s } from '@/lib/scene/hotspots';
-import type { Level, LevelContext } from '@/lib/scene/types';
+import type { Level, LevelContext, PartId } from '@/lib/scene/types';
 import { l } from '@/lib/i18n/config';
 
 export function buildPackageLevel(g: THREE.Group, lv: Level, ctx: LevelContext) {
@@ -20,7 +20,8 @@ export function buildPackageLevel(g: THREE.Group, lv: Level, ctx: LevelContext) 
   lv.fog = [9, 26];
   shadowDisc(3.4, -0.1, g);
   // substrate with pad texture
-  box(3.2, 0.14, 3.2, M.sub, 0, 0, 0, g);
+  const substrate = box(3.2, 0.14, 3.2, M.sub, 0, 0, 0, g);
+  ctx.parts?.register('substrate', substrate);
   const cv = document.createElement('canvas');
   cv.width = cv.height = 512;
   const c2 = cv.getContext('2d')!;
@@ -43,9 +44,13 @@ export function buildPackageLevel(g: THREE.Group, lv: Level, ctx: LevelContext) 
   pads.position.y = 0.071;
   g.add(pads);
   // interposer
-  box(2.35, 0.09, 2.35, M.si, 0, 0.19, 0, g);
+  const interposer = box(2.35, 0.09, 2.35, M.si, 0, 0.19, 0, g);
+  ctx.parts?.register('interposer', interposer);
   // die with glowing top
-  box(0.95, 0.1, 0.95, M.dark, 0, 0.29, 0, g);
+  const die = new THREE.Group();
+  g.add(die);
+  ctx.parts?.register('die', die);
+  box(0.95, 0.1, 0.95, M.dark, 0, 0.29, 0, die);
   const dv = document.createElement('canvas');
   dv.width = dv.height = 256;
   const d2 = dv.getContext('2d')!;
@@ -73,7 +78,7 @@ export function buildPackageLevel(g: THREE.Group, lv: Level, ctx: LevelContext) 
   const dt = new THREE.Mesh(new THREE.PlaneGeometry(0.93, 0.93), dieTop);
   dt.rotation.x = -Math.PI / 2;
   dt.position.y = 0.341;
-  g.add(dt);
+  die.add(dt);
   // 8 HBM stacks
   for (let hi = 0; hi < 8; hi++) {
     const hx = hi < 4 ? -0.95 : 0.95,
@@ -81,6 +86,7 @@ export function buildPackageLevel(g: THREE.Group, lv: Level, ctx: LevelContext) 
     const st = new THREE.Group();
     st.position.set(hx, 0.235, hz);
     g.add(st);
+    ctx.parts?.register(`hbm${hi}` as PartId, st);
     for (let ly = 0; ly < 8; ly++)
       box(0.5, 0.02, 0.6, ly % 2 ? M.dark : M.panel, 0, ly * 0.026, 0, st);
     box(0.5, 0.018, 0.6, M.steel, 0, 8 * 0.026, 0, st);

@@ -21,8 +21,11 @@ export function buildDieLevel(g: THREE.Group, lv: Level, ctx: LevelContext) {
   shadowDisc(4.0, -0.22, g);
   box(4.4, 0.18, 3.2, M.dark, 0, -0.09, 0, g);
   // fins
+  const fins = new THREE.Group();
+  g.add(fins);
+  ctx.parts?.register('fins', fins);
   for (let i = 0; i < 21; i++) {
-    box(0.06, 0.3, 2.7, M.si, -1.6 + i * 0.16, 0.15, 0, g);
+    box(0.06, 0.3, 2.7, M.si, -1.6 + i * 0.16, 0.15, 0, fins);
   }
   // gates crossing
   for (let j = 0; j < 5; j++) {
