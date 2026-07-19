@@ -2,10 +2,12 @@
 // design spec `docs/superpowers/specs/2026-07-18-ai-server-stack-multi-axis-
 // tree-design.md` §8). Verifies every id `StackNode`s reference resolves in
 // `supply-chain.ts`, the §6 honesty invariant holds on every edge, node ids
-// are unique, there's no self-edge, and the `containment` axis is a single
-// tree with no orphan. Run: pnpm check:tree
+// are unique, there's no self-edge, the `containment` axis is a single tree
+// with no orphan, and (final-review pass) every node's inbound edges all
+// share one confidence tier — the invariant node-panel.tsx's "first inbound
+// edge" confidence lookup relies on. Run: pnpm check:tree
 
-import { STACK_NODES } from '../lib/data/stack-tree';
+import { STACK_NODES, type Confidence } from '../lib/data/stack-tree';
 import { rootsOf, childrenOf } from '../lib/data/stack-tree-nav';
 import { COMPANIES } from '../lib/data/supply-chain/companies';
 import { CATEGORIES } from '../lib/data/supply-chain/categories';
@@ -86,6 +88,31 @@ if (containmentRoots.length === 0) {
     if (!reached.has(id))
       err(`containment axis: node "${id}" is unreachable from any root (orphan)`);
   }
+}
+
+// 9. inbound-tier invariant — `components/stack/node-panel.tsx` derives a
+// node's OWN confidence/actionability from just its FIRST inbound edge
+// (across any axis), which is only correct because every edge into a given
+// node is guaranteed today to carry the same tier (`edgeTo()` is the single
+// constructor for `StackEdge`, and it reads confidence from one shared
+// per-target tier keyed by `to`). Assert that guarantee explicitly here so a
+// future hand-edit that gives one node two differently-confident inbound
+// edges fails THIS gate with a clear message, instead of silently making
+// node-panel.tsx's badge/actionability arbitrary (whichever edge happened to
+// be declared first in `STACK_NODES`).
+const inboundConfidence = new Map<string, Confidence>();
+const mixedTierNodes = new Set<string>();
+for (const n of STACK_NODES) {
+  for (const e of n.edges) {
+    const seen = inboundConfidence.get(e.to);
+    if (seen === undefined) inboundConfidence.set(e.to, e.confidence);
+    else if (seen !== e.confidence) mixedTierNodes.add(e.to);
+  }
+}
+for (const id of mixedTierNodes) {
+  err(
+    `node "${id}": inbound edges have mixed confidence tiers (node-panel.tsx assumes all inbound edges to a node share one tier)`,
+  );
 }
 
 if (errors.length) {

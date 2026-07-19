@@ -127,31 +127,48 @@ const SPECS_LABEL = l('Specs', '規格');
 const SUPPLIERS_LABEL = l('Suppliers', '供應商');
 const NO_SUPPLIER_LABEL = l('No supplier linked yet', '尚無供應商連結');
 const VIEW_IN_GRAPH_LABEL = l('View in graph', '在圖譜中檢視');
+const SOURCE_LINK_LABEL = l('Open source', '開啟來源');
 
-/** One spec row: value(+unit), a citation link to its source doc, and its
- * own confidence badge (a spec can be `sourced`/`gap` even on an otherwise
- * `verified` node — e.g. `gpu.substrate.tglass`'s Nittobo-share spec). */
+/** One spec row: value(+unit), its own confidence badge, and (below, full-
+ * width) a citation link to its source doc. Reachable at every width, not
+ * just sm+ (FIX 1, final-review pass) — this IS spec §6's honesty
+ * affordance: a per-spec citation a reviewer can actually open.
+ *
+ * The link is a flex sibling of `value`/badge, not nested in its own
+ * `shrink-0` box — a fixed-width non-shrinking sourceUrl chunk sitting
+ * beside `value` on the SAME row squeezed `value` (a `min-w-0 flex-1` span)
+ * down to a sliver on narrow phones, wrapping it into an unreadably narrow
+ * column that visually overlapped the link. Instead the link takes
+ * `basis-full` below `sm` — its own full-width row underneath value+badge —
+ * and only collapses back to an inline trailing chunk at `sm:basis-auto`,
+ * the same "trailing detail drops to its own line on mobile" idiom
+ * `SupplierLink` below already uses for its `在圖譜中檢視` label. */
 function SpecRow({ spec, locale }: { spec: StackSpec; locale: Locale }) {
   return (
-    <li className="ss-hairline bg-secondary flex min-h-11 flex-wrap items-center justify-between gap-2.5 rounded-[var(--radius-md)] border px-3.5 py-2.5">
+    <li className="ss-hairline bg-secondary flex min-h-11 flex-wrap items-center gap-2.5 rounded-[var(--radius-md)] border px-3.5 py-2.5">
       <span className="min-w-0 flex-1 text-[12.5px] leading-snug">
         {spec.value}
         {spec.unit ? ` ${spec.unit}` : ''}
       </span>
-      <div className="flex shrink-0 items-center gap-2.5">
-        {spec.sourceUrl && (
-          <a
-            href={`${REPO_BLOB_BASE}${spec.sourceUrl}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-tertiary hover:text-primary focus-visible:ring-ring hidden truncate rounded-[var(--radius-sm)] font-mono text-[10px] underline-offset-2 outline-none hover:underline focus-visible:ring-2 sm:inline"
-            title={spec.sourceUrl}
-          >
-            {spec.sourceUrl.split('/').pop()}
-          </a>
-        )}
-        <ConfidenceBadge confidence={spec.confidence} locale={locale} />
-      </div>
+      <ConfidenceBadge confidence={spec.confidence} locale={locale} />
+      {spec.sourceUrl && (
+        // `inline-flex min-h-11 items-center` gives the (visually small,
+        // font-mono) link a ≥44px tap target the same way breadcrumb.tsx's
+        // crumb links do, rather than relying on the row's own height. A
+        // bare `title` isn't exposed to touch/screen-reader users, so the
+        // accessible name is an explicit bilingual `aria-label` instead
+        // (the filename is still the visible text for sighted users).
+        <a
+          href={`${REPO_BLOB_BASE}${spec.sourceUrl}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label={`${pick(SOURCE_LINK_LABEL, locale)}: ${spec.sourceUrl.split('/').pop()}`}
+          className="text-tertiary hover:text-primary focus-visible:ring-ring inline-flex min-h-11 basis-full items-center truncate rounded-[var(--radius-sm)] font-mono text-[10px] underline-offset-2 outline-none hover:underline focus-visible:ring-2 sm:max-w-[9.5rem] sm:basis-auto"
+          title={spec.sourceUrl}
+        >
+          {spec.sourceUrl.split('/').pop()}
+        </a>
+      )}
     </li>
   );
 }

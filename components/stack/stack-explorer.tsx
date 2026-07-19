@@ -34,7 +34,13 @@
 // Cross-axis jump (design spec §5's signature interaction): switching axis
 // keeps `currentId` and only swaps the axis segment of the hash
 // (axis-switcher.tsx's own hrefs), so `pathTo`/`childrenOf` below just
-// re-derive from the NEW axis's reverse index — the id itself never changes.
+// re-derive from the NEW axis's reverse index — the id itself never changes
+// PROVIDED `currentId` actually participates in the new axis. When it
+// doesn't (e.g. `dc` has no `flow:power` edge in or out at all), keeping it
+// would render an empty breadcrumb/child-grid, so `parseHash`'s own
+// `participatesInAxis` check falls back to `rootsOf(axis)[0]` instead (FIX
+// 2, final-review pass) — landing on the new axis's root rather than a
+// blank view.
 //
 // `hashFor`/`ConfidenceBadge` etc. below are used only by THIS file's own
 // JSX (the child-card grid); axis-switcher.tsx/breadcrumb.tsx/mini-map.tsx
@@ -58,7 +64,7 @@ import { FlowOverlay } from '@/components/stack/flow-overlay';
 import { MiniMap } from '@/components/stack/mini-map';
 import { NodePanel } from '@/components/stack/node-panel';
 import type { Axis, Confidence } from '@/lib/data/stack-tree';
-import { NODE_MAP, childrenOf, rootsOf } from '@/lib/data/stack-tree-nav';
+import { NODE_MAP, childrenOf, parentsOf, rootsOf } from '@/lib/data/stack-tree-nav';
 import { l, pick } from '@/lib/i18n/config';
 import type { Locale, LStr } from '@/lib/i18n/config';
 import type { ClientQuotesPayload } from '@/lib/quotes-client';
@@ -94,16 +100,34 @@ function hashFor(axis: Axis, id: string): string {
   return `#/${axis}/${id}`;
 }
 
+/** Whether `id` participates in `axis` at all — has at least one child OR
+ * one parent there (design spec §4's "root/leaf/branch" definition of
+ * membership, same test `rootsOf`/`treeFor` already use internally). A node
+ * can be a perfectly valid `StackNode` and still be absent from a given
+ * axis's tree entirely (e.g. `dc` has no `flow:power` edge in or out) — see
+ * `parseHash`'s use of this below (FIX 2, final-review pass). */
+function participatesInAxis(axis: Axis, id: string): boolean {
+  return childrenOf(axis, id).length > 0 || parentsOf(axis, id).length > 0;
+}
+
 /** Pure: same hash string in, same `{axis, id}` out, every time — what makes
  * a reload/shared link land on the same node (Task 6 acceptance). An
- * unknown/missing axis falls back to `containment`; an unknown/missing id
- * falls back to that axis's first root — never throws on a malformed or
- * hand-edited hash. */
+ * unknown/missing axis falls back to `containment`; an unknown/missing id,
+ * OR an id that doesn't participate in the resolved axis at all (e.g. an
+ * axis-switch chip that keeps `currentId` across a jump onto an axis it
+ * never appears in — `dc` has no `flow:power` edge — see axis-switcher.tsx's
+ * hrefs, which always keep `currentId` and let THIS function be the one
+ * place that validates it against the axis), falls back to that axis's
+ * first root instead of rendering an empty breadcrumb/child-grid — never
+ * throws on a malformed or hand-edited hash either. */
 function parseHash(hash: string): { axis: Axis; id: string } {
   const raw = hash.startsWith('#') ? hash.slice(1) : hash;
   const [axisRaw, idRaw] = raw.split('/').filter(Boolean);
   const axis = isAxis(axisRaw) ? axisRaw : DEFAULT_AXIS;
-  const id = idRaw && NODE_MAP[idRaw] ? idRaw : (rootsOf(axis)[0] ?? FALLBACK_ID);
+  const id =
+    idRaw && NODE_MAP[idRaw] && participatesInAxis(axis, idRaw)
+      ? idRaw
+      : (rootsOf(axis)[0] ?? FALLBACK_ID);
   return { axis, id };
 }
 
@@ -222,22 +246,34 @@ export function StackExplorer({ locale, quotes }: StackExplorerProps) {
   const hash = useSyncExternalStore(subscribeHash, getHashSnapshot, getServerHashSnapshot);
   const { axis, id: currentId } = useMemo(() => parseHash(hash), [hash]);
 
-  // Normalize an empty/invalid hash to the resolved default once mounted, so
-  // the address bar itself reflects state (copy/share works) even before any
-  // click. Runs ONCE on mount (`[]` deps) and re-derives `normalized` from
-  // `window.location.hash` directly rather than from `axis`/`currentId`
-  // above: on the very first effect flush after hydration, `axis`/
-  // `currentId` still reflect `getServerHashSnapshot()` (`''` → the default
-  // node), which can disagree with a real, non-default hash the browser
-  // already has (a reload or a pasted deep link) — `useSyncExternalStore`'s
-  // own hydration-mismatch correction re-render hasn't necessarily run yet
-  // by the time this effect fires. Deriving from the stale render state
-  // would `replaceState` the browser's real hash away to the default before
-  // React ever renders the correct node, silently losing the shared link
-  // (Task 6 acceptance: "a hash URL reload lands on the same node"). Reading
-  // `window.location.hash` directly here sidesteps that race entirely.
+  // Normalize an empty/invalid/non-participating hash to its resolved
+  // `{axis,id}`, so the address bar itself always reflects what's actually
+  // on screen (copy/share works) — including right after mount (an
+  // empty/pasted-deep-link/reload hash) AND after every later `hashchange`
+  // (FIX 2, final-review pass: an axis-switch chip keeps `currentId` across
+  // a jump and `parseHash` may fall back to that axis's root — e.g. `dc` →
+  // `flow:power` → `flow.power.grid` — so the URL must catch up to match,
+  // not keep showing the stale `dc` segment). `[hash]` deps (not `[]`) is
+  // what makes it re-run on every navigation, not just mount.
+  //
+  // Still re-derives `normalized` from `window.location.hash` directly
+  // rather than from the `axis`/`currentId` state above: on the very FIRST
+  // effect flush after hydration specifically, that state still reflects
+  // `getServerHashSnapshot()` (`''` → the default node), which can disagree
+  // with a real, non-default hash the browser already has (a reload or a
+  // pasted deep link) — `useSyncExternalStore`'s own hydration-mismatch
+  // correction re-render hasn't necessarily run yet by the time this effect
+  // first fires. Deriving from that stale render state would `replaceState`
+  // the browser's real hash away to the default before React ever renders
+  // the correct node, silently losing the shared link (Task 6 acceptance:
+  // "a hash URL reload lands on the same node"). Reading
+  // `window.location.hash` directly sidesteps that race on every run, mount
+  // or not — `hash` (the dep) and `window.location.hash` always agree by
+  // the time a non-initial run of this effect fires, since both come from
+  // the same `hashchange`-driven update.
   // `replaceState`, not `location.hash =`: this must NOT add a back-button
-  // entry.
+  // entry — back/forward still lands on the ACTUAL prior hash the browser
+  // pushed, `parseHash` just re-resolves it the same deterministic way.
   useEffect(() => {
     const real = window.location.hash;
     const resolved = parseHash(real);
@@ -245,7 +281,7 @@ export function StackExplorer({ locale, quotes }: StackExplorerProps) {
     if (real !== normalized) {
       window.history.replaceState(null, '', normalized);
     }
-  }, []);
+  }, [hash]);
 
   const node = NODE_MAP[currentId];
   const childIds = useMemo(() => childrenOf(axis, currentId), [axis, currentId]);
