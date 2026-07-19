@@ -10,11 +10,13 @@
 // native hash navigation is enough (no imperative routing needed) and why
 // `hashFor` is duplicated here rather than imported.
 //
-// `flow:data`/`flow:power`/`flow:heat` have no seeded edges yet (Task 5) —
-// their chips still render and are still clickable (the shell must not know
-// or care which axes currently have data; stack-explorer.tsx's empty-state
-// handles a childless/rootless axis gracefully), so the full v1 axis set is
-// visible and navigable from day one.
+// `flow:data`/`flow:power`/`flow:heat` are now seeded (Task 5, `stack-tree.ts`
+// + `flow-overlay.tsx`) as single linear chains layered ON TOP of the same
+// generic axis mechanism these chips already drive — nothing here changed.
+// This chip row still doesn't know or care which axes currently have data
+// (stack-explorer.tsx's empty-state handles a childless/rootless axis
+// gracefully), so the full v1 axis set was visible and navigable from day
+// one regardless.
 
 import type { Axis } from '@/lib/data/stack-tree';
 import { l, pick } from '@/lib/i18n/config';

@@ -41,10 +41,20 @@
 // each keep their own trivial local copy of `hashFor` rather than importing
 // it from here, to avoid a circular import (this file imports all three of
 // them) — see breadcrumb.tsx's module doc for the full reasoning.
+//
+// Task 5 (flow axes + overlay): `<FlowOverlay>` mounts alongside the
+// existing generic axis view (child-card grid, breadcrumb, mini-map — none
+// of which needed to change, since they're already generic over `Axis`) and
+// renders the flow-specific extra: the ordered root→end path for the active
+// `flow:data`/`flow:power`/`flow:heat` axis, with each hop's `flowSpec`
+// (bandwidth/volt/°C) on the connector. It self-guards for the other three
+// axes (see its own module doc), so gating its mount here on `axis` is only
+// to avoid a stray empty spacer wrapper — not load-bearing correctness.
 
 import { useEffect, useMemo, useSyncExternalStore } from 'react';
 import { AxisSwitcher } from '@/components/stack/axis-switcher';
 import { Breadcrumb } from '@/components/stack/breadcrumb';
+import { FlowOverlay } from '@/components/stack/flow-overlay';
 import { MiniMap } from '@/components/stack/mini-map';
 import { NodePanel } from '@/components/stack/node-panel';
 import type { Axis, Confidence } from '@/lib/data/stack-tree';
@@ -244,6 +254,18 @@ export function StackExplorer({ locale, quotes }: StackExplorerProps) {
       <div className="flex flex-col gap-5 lg:flex-row lg:items-start">
         <div className="min-w-0 flex-1">
           <NodePanel node={node} locale={locale} />
+
+          {/* Flow axes (Task 5) additionally render the ordered root→end
+           * path as a diagram — gated on `axis` here (rather than always
+           * mounting and letting `FlowOverlay` no-op) so a non-flow axis
+           * doesn't leave a stray empty spacer wrapper in the DOM; the
+           * component itself still independently no-ops for defense (see
+           * its own module doc). */}
+          {axis.startsWith('flow:') && (
+            <div className="mt-4">
+              <FlowOverlay axis={axis} currentId={currentId} locale={locale} />
+            </div>
+          )}
 
           <ul className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {childIds.length === 0 ? (

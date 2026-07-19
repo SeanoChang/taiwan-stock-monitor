@@ -68,6 +68,15 @@ export interface StackNode {
 // containment/verification-tier tags below, so only the latter is cited.)
 const SRC_NAVMAP = 'docs/superpowers/ai-server-stack/tree-website-navigation-map.md';
 const SRC_SPEC = 'docs/superpowers/specs/2026-07-18-ai-server-stack-multi-axis-tree-design.md';
+// Task 5 (flow axes) additions cite the two dedicated verified-flow research
+// runs directly, same "earlier verified docs" tier as the rack/GPU-internal
+// spine (spec §6's honesty carve-out — NOT the 2026-07-18 upstream
+// expansion): `research-verified-gpu-hbm-packaging-interconnect.md` for
+// `flow:data`, `research-verified-rack-power-cooling.md` for
+// `flow:power`/`flow:heat`.
+const SRC_GPU_HBM =
+  'docs/superpowers/ai-server-stack/research-verified-gpu-hbm-packaging-interconnect.md';
+const SRC_RACK_POWER = 'docs/superpowers/ai-server-stack/research-verified-rack-power-cooling.md';
 
 // ---------------------------------------------------------------------------
 // Per-node base confidence tier — the single source of truth `edgeTo()` reads
@@ -142,17 +151,42 @@ const NODE_TIER: Record<string, Confidence> = {
   // gap — structural "no Taiwan hook" link (spec §7 §E): Ajinomoto's ABF
   // build-up film has no TW-listed alternative.
   'gpu.substrate.film': 'gap',
+
+  // verified — Task 5 flow-only waypoint nodes (below): each line in the
+  // nav-map's dedicated flow-view sections ("電力鏈 ─ flow view [✓]",
+  // "散熱鏈 ─ flow view [✓]", the GPU-internal datapath bullets) carries an
+  // explicit [✓] tag, same earlier-verified-doc tier as the rack/GPU-internal
+  // spine above — these are NOT part of the 2026-07-18 upstream expansion.
+  // `flow.heat.cdu`'s own *type* (immersion vs. plate) is flagged [?] in the
+  // doc — that uncertainty is carried in its `blurb`, not its tier, mirroring
+  // how `rack.rails` already separates "structure confirmed" from "detail
+  // unconfirmed".
+  'flow.data.nvhbi': 'verified',
+  'flow.power.grid': 'verified',
+  'flow.heat.coldplate': 'verified',
+  'flow.heat.cdu': 'verified',
+  'flow.heat.facility': 'verified',
 };
 
 /** Build an outgoing edge; confidence is read from the TARGET's declared
  * tier, so `actionable` can never disagree with `confidence` (honesty
- * invariant, spec §6) and no edge can silently point at an undeclared node. */
-function edgeTo(to: string, axis: Axis, sourceUrl?: string): StackEdge {
+ * invariant, spec §6) and no edge can silently point at an undeclared node.
+ * `flowSpec` (Task 5) is optional and orthogonal to confidence — it's the
+ * per-hop bandwidth/volt/°C label the flow-axis overlay renders, not a
+ * provenance claim of its own; a hop with no sourced number simply omits it
+ * rather than fabricating one (see the flow-edge calls below, several of
+ * which deliberately pass none). */
+function edgeTo(
+  to: string,
+  axis: Axis,
+  sourceUrl?: string,
+  flowSpec?: StackEdge['flowSpec'],
+): StackEdge {
   const confidence = NODE_TIER[to];
   if (!confidence) {
     throw new Error(`stack-tree: edgeTo("${to}") — no NODE_TIER entry for "${to}"`);
   }
-  return { to, axis, confidence, actionable: confidence === 'verified', sourceUrl };
+  return { to, axis, confidence, actionable: confidence === 'verified', sourceUrl, flowSpec };
 }
 
 const spec = (
@@ -283,7 +317,16 @@ const CONTAINMENT_NODES: StackNode[] = [
     companyIds: ['upi6719', 'excelliance'],
     stageId: 'chip',
     specs: [spec('48V→12V, RapidLock, 2.7kW/board', 'verified')],
-    edges: [edgeTo('power.chain', 'containment', SRC_NAVMAP)],
+    edges: [
+      edgeTo('power.chain', 'containment', SRC_NAVMAP),
+      // flow:power hop 4/4 — PDB's 12V rail feeds the tray board up to the
+      // GPU's own max TGP (terminal hop of the power flow).
+      edgeTo('rack.tray.gpu', 'flow:power', SRC_RACK_POWER, {
+        value: 1400,
+        unit: 'W',
+        label: l('GPU TGP (max, via 12V tray rail)', 'GPU 最高熱設計功耗（經 12V 托盤軌）'),
+      }),
+    ],
   },
   {
     id: 'rack.switchtray',
@@ -325,7 +368,14 @@ const CONTAINMENT_NODES: StackNode[] = [
     companyIds: ['liteon', 'delta'],
     stageId: 'subsystem',
     specs: [spec('33kW ×8/rack; 6×5.5kW PSU, N+N', 'verified')],
-    edges: [],
+    // flow:power hop 2/4 — shelf output feeds the rack busbar.
+    edges: [
+      edgeTo('rack.busbar', 'flow:power', SRC_RACK_POWER, {
+        value: 50,
+        unit: 'V DC',
+        label: l('Busbar (47.5–51.5V, 1400A)', '匯流排（47.5–51.5V，1400A）'),
+      }),
+    ],
   },
   {
     id: 'rack.busbar',
@@ -335,7 +385,14 @@ const CONTAINMENT_NODES: StackNode[] = [
     companyIds: ['bizlink'],
     stageId: 'subsystem',
     specs: [spec('~50V DC / 1400A', 'verified')],
-    edges: [],
+    // flow:power hop 3/4 — busbar feeds the per-tray PDB.
+    edges: [
+      edgeTo('rack.tray.pdb', 'flow:power', SRC_RACK_POWER, {
+        value: 48,
+        unit: 'V',
+        label: l('PDB input (48V-class)', 'PDB 輸入（48V 級）'),
+      }),
+    ],
   },
   {
     id: 'rack.cooling',
@@ -344,7 +401,18 @@ const CONTAINMENT_NODES: StackNode[] = [
     categoryId: 'thermal',
     companyIds: ['avc', 'auras', 'fositek', 'kaori'],
     stageId: 'subsystem',
-    edges: [edgeTo('heat.chain', 'containment', SRC_NAVMAP)],
+    edges: [
+      edgeTo('heat.chain', 'containment', SRC_NAVMAP),
+      // flow:heat hop 2/3 — manifold hands off to the CDU.
+      edgeTo('flow.heat.cdu', 'flow:heat', SRC_RACK_POWER, {
+        value: 50,
+        unit: '°C',
+        label: l(
+          'Manifold coolant range (2–50°C, DI water/PG25)',
+          '歧管冷卻液溫域（2–50°C，DI 水/PG25）',
+        ),
+      }),
+    ],
   },
   {
     id: 'rack.rails',
@@ -383,7 +451,13 @@ const CONTAINMENT_NODES: StackNode[] = [
     companyIds: ['skhynix', 'micron', 'samsung', 'pti'],
     stageId: 'chip',
     specs: [spec('8× 12-Hi stacks, 36GB/stack → 288GB, 8TB/s', 'verified')],
-    edges: [edgeTo('mem.tiers', 'containment', SRC_NAVMAP)],
+    edges: [
+      edgeTo('mem.tiers', 'containment', SRC_NAVMAP),
+      // flow:data hop 2/6 — HBM fans onto the CoWoS-L interposer; no sourced
+      // bandwidth figure for this specific packaging hop, so no `flowSpec`
+      // (edgeTo()'s own doc: omit rather than fabricate).
+      edgeTo('gpu.cowos', 'flow:data', SRC_GPU_HBM),
+    ],
   },
   {
     id: 'gpu.cowos',
@@ -396,7 +470,17 @@ const CONTAINMENT_NODES: StackNode[] = [
     companyIds: ['tsmc'],
     stageId: 'chip',
     specs: [spec('RDL interposer + LSI chiplets + eDTC', 'verified')],
-    edges: [],
+    // flow:data hop 3/6 — onward to the die-to-die interconnect (nav-map's
+    // flow-view narrative order per design spec §4's table; NV-HBI is
+    // physically intra-package, this hop is the flow overlay's curated
+    // narrative order, not a literal signal-path claim).
+    edges: [
+      edgeTo('flow.data.nvhbi', 'flow:data', SRC_GPU_HBM, {
+        value: 10,
+        unit: 'TB/s',
+        label: l('NV-HBI die-to-die link', 'NV-HBI 晶粒對晶粒鏈路'),
+      }),
+    ],
   },
   {
     id: 'gpu.substrate',
@@ -499,7 +583,17 @@ const CONTAINMENT_NODES: StackNode[] = [
     companyIds: ['nvidia'],
     stageId: 'anchor',
     specs: [spec('160 SM × (128 CUDA + 4 Tensor + 256KB TMEM) = 20,480 CUDA', 'verified')],
-    edges: [],
+    // flow:data hop 1/6 — SM feeds HBM through the memory controller (see
+    // `gpu.internal.memctrl`'s own already-seeded spec for the same 8TB/s
+    // figure; the flow view collapses SM→memctrl→HBM to the one hop the
+    // design spec's §4 table names, "GPU SM → HBM").
+    edges: [
+      edgeTo('gpu.hbm', 'flow:data', SRC_GPU_HBM, {
+        value: 8,
+        unit: 'TB/s',
+        label: l('Memory controller → HBM', '記憶體控制器 → HBM'),
+      }),
+    ],
   },
   {
     id: 'gpu.internal.memctrl',
@@ -525,7 +619,14 @@ const CONTAINMENT_NODES: StackNode[] = [
     companyIds: ['nvidia'],
     stageId: 'anchor',
     specs: [spec('UALink 200G 1.0 target: 1,024 endpoints, 93% efficiency', 'verified')],
-    edges: [],
+    // flow:data hop 5/6 — scale-up fabric hands off to the scale-out network.
+    edges: [
+      edgeTo('net.scaleout', 'flow:data', SRC_NAVMAP, {
+        value: 3200,
+        unit: 'Gb/s',
+        label: l('Scale-out NIC aggregate (4×800G)', 'Scale-out 網卡聚合頻寬（4×800G）'),
+      }),
+    ],
   },
   {
     id: 'net.scaleout',
@@ -538,7 +639,14 @@ const CONTAINMENT_NODES: StackNode[] = [
     companyIds: ['accton', 'wnc'],
     stageId: 'cloud',
     specs: [spec('node side: 4× ConnectX-8 800G', 'verified')],
-    edges: [edgeTo('net.optics', 'containment', SRC_NAVMAP)],
+    edges: [
+      edgeTo('net.optics', 'containment', SRC_NAVMAP),
+      // flow:data hop 6/6 — terminates at the memory/storage tier. Nav-map's
+      // own "記憶體/儲存階層 ─ flow view" line marks NVMe/network-storage
+      // bandwidth `[?]` (gap) — no sourced number for THIS specific hop, so
+      // no `flowSpec` rather than asserting one.
+      edgeTo('mem.tiers', 'flow:data', SRC_NAVMAP),
+    ],
   },
   {
     id: 'net.optics',
@@ -752,6 +860,107 @@ const CONTAINMENT_NODES: StackNode[] = [
 ];
 
 // ---------------------------------------------------------------------------
+// Flow-only waypoint nodes (Plan 006 Phase G Task 5; design spec §4). The
+// `flow:data`/`flow:power`/`flow:heat` axes mostly re-thread EXISTING
+// containment nodes (gpu.internal.sm, gpu.hbm, gpu.cowos, net.scaleup,
+// net.scaleout, mem.tiers; rack.powershelf, rack.busbar, rack.tray.pdb,
+// rack.tray.gpu; rack.cooling — their new `flow:*` edges live inline on
+// those nodes above) but each flow's *first* hop (and heat's CDU/facility
+// hops) name a concept with no existing containment counterpart — "grid",
+// "NV-HBI", "cold plate", "CDU", "facility water". Rather than force these
+// onto the containment/subsystem/stage axes (they aren't distinct hardware
+// SKUs with their own supplier — they're physics/infra waypoints the two
+// verified flow-research docs name explicitly), they're modeled as small
+// nodes that participate ONLY in their one flow axis: no `companyIds`
+// (matching the honest "no Taiwan hook" pattern `gpu.substrate.film` already
+// establishes for a fact with nothing to attribute), no `categoryId`/
+// `stageId` (they're not `supply-chain.ts`-backed entities), no containment/
+// subsystem/stage edges. `check:tree`'s reachability gate only walks the
+// `containment` axis, so this is expected, not an orphan.
+const FLOW_WAYPOINT_NODES: StackNode[] = [
+  {
+    id: 'flow.data.nvhbi',
+    name: l('NV-HBI Die-to-Die Link', 'NV-HBI 晶粒間鏈路'),
+    blurb: l(
+      '10TB/s die-to-die interconnect joining the Blackwell Ultra dual-reticle dies.',
+      '10TB/s 晶粒對晶粒互連，連接 Blackwell Ultra 雙倍光罩晶粒。',
+    ),
+    specs: [spec('10 TB/s die-to-die', 'verified', { sourceUrl: SRC_GPU_HBM })],
+    // flow:data hop 4/6 — onward to the scale-up fabric.
+    edges: [
+      edgeTo('net.scaleup', 'flow:data', SRC_GPU_HBM, {
+        value: 1.8,
+        unit: 'TB/s',
+        label: l('NVLink 5 per-GPU bidirectional', '每 GPU NVLink 5 雙向頻寬'),
+      }),
+    ],
+  },
+  {
+    id: 'flow.power.grid',
+    name: l('Grid / Facility Power Feed', '市電/廠務電力輸入'),
+    blurb: l(
+      '3-phase 200–480Vac facility feed into the rack power shelves.',
+      '三相 200–480Vac 廠務電力，輸入機櫃電源櫃。',
+    ),
+    specs: [spec('3φ 200–480Vac', 'verified', { sourceUrl: SRC_RACK_POWER })],
+    // flow:power hop 1/4 — root of the power flow.
+    edges: [
+      edgeTo('rack.powershelf', 'flow:power', SRC_RACK_POWER, {
+        value: 480,
+        unit: 'Vac',
+        label: l('3-phase grid feed (200–480Vac)', '三相市電輸入（200–480Vac）'),
+      }),
+    ],
+  },
+  {
+    id: 'flow.heat.coldplate',
+    name: l('Cold Plate', '冷板'),
+    blurb: l(
+      'Direct-liquid cold plates on CPU/GPU/NIC dies — carries ~90% of rack heat.',
+      'CPU/GPU/NIC 晶片上的直觸式液冷冷板 — 承載機櫃約 90% 熱量。',
+    ),
+    specs: [spec('~90% of heat to liquid', 'verified', { sourceUrl: SRC_RACK_POWER })],
+    // flow:heat hop 1/3 — root of the heat flow.
+    edges: [
+      edgeTo('rack.cooling', 'flow:heat', SRC_RACK_POWER, {
+        value: 90,
+        unit: '%',
+        label: l(
+          'Share of rack heat carried by liquid cold plates',
+          '機櫃熱量由液冷冷板承載之比例',
+        ),
+      }),
+    ],
+  },
+  {
+    id: 'flow.heat.cdu',
+    name: l('CDU', 'CDU 冷卻液分配單元'),
+    blurb: l(
+      'Coolant distribution unit between the rack manifold and facility water; exact type/vendor unconfirmed.',
+      '機櫃歧管與廠務水之間的冷卻液分配單元；確切型式與供應商尚未確認。',
+    ),
+    // flow:heat hop 3/3 — CDU hands off to the facility water loop.
+    edges: [
+      edgeTo('flow.heat.facility', 'flow:heat', SRC_RACK_POWER, {
+        value: 45,
+        unit: '°C',
+        label: l('CDU → facility supply water (W45, ≤45°C)', 'CDU 送至廠務供水（W45，≤45°C）'),
+      }),
+    ],
+  },
+  {
+    id: 'flow.heat.facility',
+    name: l('Facility Water', '廠務水'),
+    blurb: l(
+      'Facility supply water loop, ASHRAE W45 (≤45°C) — the heat chain terminus.',
+      '廠務供水迴路，ASHRAE W45（≤45°C）— 散熱鏈終點。',
+    ),
+    specs: [spec('W45, ≤45°C facility supply', 'verified', { sourceUrl: SRC_RACK_POWER })],
+    edges: [], // terminal
+  },
+];
+
+// ---------------------------------------------------------------------------
 // Subsystem-axis group nodes (spec §4: compute / memory / packaging /
 // scale-up / scale-out+optics / power / cooling / management /
 // upstream-materials). Curated grouping over the node set above — not
@@ -910,4 +1119,9 @@ const STAGE_NODES: StackNode[] = STAGES.filter((s) => (STAGE_MEMBERS[s.id]?.leng
 );
 
 // ---------------------------------------------------------------------------
-export const STACK_NODES: StackNode[] = [...CONTAINMENT_NODES, ...SUBSYSTEM_NODES, ...STAGE_NODES];
+export const STACK_NODES: StackNode[] = [
+  ...CONTAINMENT_NODES,
+  ...FLOW_WAYPOINT_NODES,
+  ...SUBSYSTEM_NODES,
+  ...STAGE_NODES,
+];
