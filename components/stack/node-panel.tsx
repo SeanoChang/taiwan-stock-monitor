@@ -242,7 +242,9 @@ export function NodePanel({ node, locale }: NodePanelProps) {
         {confidence && <ConfidenceBadge confidence={confidence} locale={locale} />}
       </div>
 
-      <p className="text-muted-foreground text-[13px] leading-relaxed">{pick(node.blurb, locale)}</p>
+      <p className="text-muted-foreground text-[13px] leading-relaxed">
+        {pick(node.blurb, locale)}
+      </p>
 
       {specs.length > 0 && (
         <div className="flex flex-col gap-1.5">
