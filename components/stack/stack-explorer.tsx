@@ -224,16 +224,28 @@ export function StackExplorer({ locale, quotes }: StackExplorerProps) {
 
   // Normalize an empty/invalid hash to the resolved default once mounted, so
   // the address bar itself reflects state (copy/share works) even before any
-  // click. `replaceState`, not `location.hash =`: this must NOT add a
-  // back-button entry, and deliberately fires no `hashchange` — `axis`/
-  // `currentId` above already equal this exact default (`parseHash` is
-  // pure), so nothing downstream needs to re-run.
+  // click. Runs ONCE on mount (`[]` deps) and re-derives `normalized` from
+  // `window.location.hash` directly rather than from `axis`/`currentId`
+  // above: on the very first effect flush after hydration, `axis`/
+  // `currentId` still reflect `getServerHashSnapshot()` (`''` → the default
+  // node), which can disagree with a real, non-default hash the browser
+  // already has (a reload or a pasted deep link) — `useSyncExternalStore`'s
+  // own hydration-mismatch correction re-render hasn't necessarily run yet
+  // by the time this effect fires. Deriving from the stale render state
+  // would `replaceState` the browser's real hash away to the default before
+  // React ever renders the correct node, silently losing the shared link
+  // (Task 6 acceptance: "a hash URL reload lands on the same node"). Reading
+  // `window.location.hash` directly here sidesteps that race entirely.
+  // `replaceState`, not `location.hash =`: this must NOT add a back-button
+  // entry.
   useEffect(() => {
-    const normalized = hashFor(axis, currentId);
-    if (window.location.hash !== normalized) {
+    const real = window.location.hash;
+    const resolved = parseHash(real);
+    const normalized = hashFor(resolved.axis, resolved.id);
+    if (real !== normalized) {
       window.history.replaceState(null, '', normalized);
     }
-  }, [axis, currentId]);
+  }, []);
 
   const node = NODE_MAP[currentId];
   const childIds = useMemo(() => childrenOf(axis, currentId), [axis, currentId]);
