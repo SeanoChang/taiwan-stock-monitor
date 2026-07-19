@@ -75,6 +75,15 @@ const SIZE = (RADIUS + CLUSTER_MARGIN) * 2;
 const BREADCRUMB_LABEL = l('Pivot trail', '瀏覽路徑');
 const NO_LINKS_LABEL = l('No known supplier or customer links yet.', '目前尚無已知的供應鏈關聯。');
 
+// Focus-trap fix (code review): every native Tab stop the dialog can ever
+// contain — alter/tail chips, breadcrumb links, the close button, the "view
+// in graph" button. Deliberately excludes `[tabindex="-1"]` (EgoChip's own
+// programmatic-only focus target, see that component's doc) so the trap's
+// wrap-around never lands on a node that isn't a real Tab stop in the page's
+// natural order.
+const FOCUSABLE_SELECTOR =
+  'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
 function displayName(id: string, locale: Locale): string {
   const c = COMPANY_MAP[id];
   if (!c) return id;
@@ -368,6 +377,42 @@ export function BranchOverlay({ rootId, quotes, locale, onClose, onDeepLink }: B
   const [trail, setTrail] = useState<string[]>(() => [rootId]);
   const ego = trail[trail.length - 1] ?? rootId;
 
+  // Focus trap + restoration (code review fix). `dialogRef` scopes the Tab
+  // wrap-around to this dialog's own subtree; `triggerRef` captures whatever
+  // had focus the instant this component was *asked to render* — the click/
+  // keyboard-activated company chip on the Phase D card underneath (a real
+  // mouse hover never moves focus, so this is `document.body` or whatever
+  // was last focused in that case, which `.focus()` on is a harmless no-op)
+  // — and restores it on unmount.
+  //
+  // Captured via the lazy-ref-init pattern (a plain `if` during render, not
+  // an effect) rather than `useEffect(() => { triggerRef.current =
+  // document.activeElement; }, [])`: React commits effects bottom-up (every
+  // *descendant's* effects fire before this component's own), and
+  // `BranchCluster` below has its own mount effect that moves focus onto its
+  // ego chip. An effect here would run *after* that child effect already
+  // stole focus, capturing the ego chip itself as the "trigger" instead of
+  // the real one — restoring focus right back into the overlay that's
+  // closing. Reading `document.activeElement` during render sidesteps this
+  // entirely: render always completes, parent *and* children, before any
+  // effect (child or parent) gets to run.
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<Element | null | undefined>(undefined);
+  if (triggerRef.current === undefined) {
+    triggerRef.current = typeof document !== 'undefined' ? document.activeElement : null;
+  }
+  // Restoring is a lifecycle concern (runs once, on unmount) even though
+  // capturing isn't — this mount-effect-with-cleanup only ever fires its
+  // cleanup, one time, when `ScrollyStage` clears `openEgo` and unmounts
+  // this whole component (pivoting via `trail` never remounts it, only the
+  // inner `BranchCluster` — see that component's own `egoRef` effect above).
+  useEffect(() => {
+    return () => {
+      const trigger = triggerRef.current;
+      if (trigger instanceof HTMLElement) trigger.focus();
+    };
+  }, []);
+
   const pivot = (id: string) => setTrail((prev) => [...prev, id]);
   const jumpBack = (i: number) => setTrail((prev) => prev.slice(0, i + 1));
 
@@ -405,10 +450,46 @@ export function BranchOverlay({ rootId, quotes, locale, onClose, onDeepLink }: B
   // Esc closes from anywhere in the overlay, not just when a specific
   // element has focus — a document-level listener, torn down with the
   // overlay itself (mirrors `onClose`'s other trigger, the backdrop click,
-  // being handled directly in JSX below).
+  // being handled directly in JSX below). Same listener also traps Tab/
+  // Shift+Tab within the dialog (code review fix): a document-level
+  // `keydown` — rather than a listener on the dialog node itself — is what
+  // lets this catch Tab presses that land on the backdrop or (via a bug
+  // elsewhere) outside the dialog too, matching Esc's own "from anywhere in
+  // the overlay" reach. The focusable set is recomputed on every Tab press
+  // rather than cached, since it changes across a pivot (a fresh
+  // `BranchCluster` = a different alter/tail-chip set) and across the "+N"
+  // tail expanding.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape') {
+        onClose();
+        return;
+      }
+      if (e.key !== 'Tab') return;
+      const dialog = dialogRef.current;
+      if (!dialog) return;
+      const focusables = Array.from(dialog.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR));
+      if (focusables.length === 0) {
+        // Nothing tabbable (shouldn't happen — the close button alone always
+        // qualifies — but keeps focus from ever escaping to the page behind
+        // the veil if it somehow did).
+        e.preventDefault();
+        dialog.focus();
+        return;
+      }
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      const active = document.activeElement;
+      const withinDialog = active instanceof Node && dialog.contains(active);
+      if (e.shiftKey) {
+        if (!withinDialog || active === first) {
+          e.preventDefault();
+          last.focus();
+        }
+      } else if (!withinDialog || active === last) {
+        e.preventDefault();
+        first.focus();
+      }
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
@@ -430,11 +511,22 @@ export function BranchOverlay({ rootId, quotes, locale, onClose, onDeepLink }: B
       className="ss-veil fixed inset-0 z-[60] flex items-center justify-center p-4"
       onClick={onClose}
     >
+      {/* `pb-16` (code review fix, tier-ribbon.tsx's own bottom-clearance
+       * comment gives the same 64px figure): tier-ribbon.tsx elevates itself
+       * above this very veil for as long as this overlay is mounted (its own
+       * module doc explains why), so this scrollable dialog needs the same
+       * bottom clearance scrolly-stage.tsx's reduced-motion nav already
+       * reserves for it — otherwise this dialog's own bottom content (the
+       * breadcrumb row, on a short viewport where the whole dialog scrolls
+       * and that row ends up nearest the bottom of what's visible) would sit
+       * underneath the now-elevated ribbon. */}
       <div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-label={dialogLabel}
-        className="relative z-10 flex max-h-full w-full max-w-[560px] flex-col items-center gap-4 overflow-auto outline-none"
+        tabIndex={-1}
+        className="relative z-10 flex max-h-full w-full max-w-[560px] flex-col items-center gap-4 overflow-auto pb-16 outline-none"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex w-full items-center justify-between gap-2">

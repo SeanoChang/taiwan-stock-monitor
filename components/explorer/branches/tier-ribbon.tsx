@@ -46,13 +46,31 @@
 // on any one tier, so nothing glows there, while the rack/server/teardown
 // chapters in between read as the *finished system* sharpening to its
 // *board* once the lid lifts.
+//
+// Elevate-while-overlay-open (code review fix): this ribbon normally renders
+// in place, `fixed` inside `.scrolly-stage` at `z-[9]`. But `position:
+// sticky` (that ancestor's own positioning, unrelated to this file) always
+// establishes a new stacking context per spec, which traps this `fixed`
+// child's z-index comparisons to *within* that context — bumping this file's
+// own z-index number alone wouldn't out-rank branch-overlay.tsx's
+// `document.body`-portaled `z-[60]` veil, which sits in a different
+// stacking context entirely. So instead, exactly when `activeStages` is
+// defined — the same condition ScrollyStage already uses to mean "the
+// overlay is open" (see that prop's own doc above) — this ribbon *also*
+// portals to `document.body` itself, landing in the exact same stacking
+// context as the veil, where a plain z-index bump (`z-[70]`, clearing the
+// veil's `z-[60]`) reliably wins. When no overlay is open this stays a
+// perfectly ordinary in-tree `fixed` element — zero behavior change to the
+// scroll-driven chapter glow, which never reads `activeStages` at all.
 
 import { useEffect, useRef } from 'react';
 import type { RefObject } from 'react';
+import { createPortal } from 'react-dom';
 import type { StageId } from '@/lib/data/supply-chain';
 import { CHAPTERS } from '@/lib/scene/disassembly-timeline';
 import { l, pick } from '@/lib/i18n/config';
 import type { Locale, LStr } from '@/lib/i18n/config';
+import { cn } from '@/lib/utils';
 
 export interface TierRibbonProps {
   /** p ∈ [0,1]; written by useScrollProgress's GSAP/rAF source, read here via
@@ -167,10 +185,22 @@ export function TierRibbon({ progressRef, activeStages, onTier, locale }: TierRi
     return () => cancelAnimationFrame(raf);
   }, [progressRef]);
 
-  return (
+  // `activeStages !== undefined` is exactly ScrollyStage's own "overlay is
+  // open" signal (see this prop's doc above) — reused here rather than a new
+  // prop so the ribbon's elevated/portaled state can never drift out of sync
+  // with the overlay's own open/closed state.
+  const overlayOpen = activeStages !== undefined;
+
+  const ribbon = (
     <nav
       aria-label={pick(RIBBON_LABEL, locale)}
-      className="ss-veil pointer-events-auto fixed inset-x-0 bottom-0 z-[9] flex items-stretch justify-center gap-0.5 overflow-x-auto border-t px-2 py-1.5 sm:gap-1 sm:px-4"
+      className={cn(
+        'ss-veil pointer-events-auto fixed inset-x-0 bottom-0 flex items-stretch justify-center gap-0.5 overflow-x-auto border-t px-2 py-1.5 sm:gap-1 sm:px-4',
+        // See the module doc above: elevated above branch-overlay.tsx's
+        // `z-[60]` veil, and *only* while that veil is up — the ordinary
+        // `z-[9]` otherwise, unchanged from before this fix.
+        overlayOpen ? 'z-[70]' : 'z-[9]',
+      )}
     >
       {TIERS.map((tier, i) => {
         const isOverlayActive = activeStages?.has(tier.group) ?? false;
@@ -206,4 +236,14 @@ export function TierRibbon({ progressRef, activeStages, onTier, locale }: TierRi
       })}
     </nav>
   );
+
+  // SSR-safe portal, same belt-and-braces reasoning as branch-overlay.tsx's
+  // own portal guard: `overlayOpen` can only ever become true after a
+  // client-side hover/tap has opened BranchOverlay, so this branch is never
+  // actually exercised during a server render — but it keeps this component
+  // from being able to crash one regardless.
+  if (overlayOpen && typeof document !== 'undefined') {
+    return createPortal(ribbon, document.body);
+  }
+  return ribbon;
 }
