@@ -3,6 +3,7 @@
 // Public entry point: wires the renderer, level geometry, hotspots and controls together.
 
 import * as THREE from 'three';
+import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { createOrbitControls } from '@/lib/scene/camera';
 import { createGeometryHelpers } from '@/lib/scene/geometry';
 import { mountHotspots, projectHotspots, setHotspotLocale } from '@/lib/scene/hotspots';
@@ -72,13 +73,29 @@ export function createScene(opts: SceneOptions): SceneApi {
   scene.fog = fog;
   const camera = new THREE.PerspectiveCamera(42, 1, 0.05, 200);
 
-  // lights
-  const hemi = new THREE.HemisphereLight(0x3a5570, 0x0a1220, 1.05);
+  // ---------- image-based lighting ----------
+  // Procedural PMREM studio env (three@0.152's built-in `RoomEnvironment` —
+  // no binary HDRI asset) so every PBR material gets physically-plausible
+  // specular + diffuse IBL instead of punctual lights alone (Phase F Task 1;
+  // docs/superpowers/apple-redesign/02-high-fidelity-rendering). The
+  // generator and its source room scene are one-shot bake inputs — both are
+  // disposed immediately after `scene.environment` is set; only the baked
+  // PMREM texture is kept alive (and is released in api.dispose() below).
+  const pmremGenerator = new THREE.PMREMGenerator(renderer);
+  const envRoom = new RoomEnvironment();
+  scene.environment = pmremGenerator.fromScene(envRoom, 0.04).texture;
+  envRoom.dispose();
+  pmremGenerator.dispose();
+
+  // lights — trimmed now that the env above supplies ambient/specular fill,
+  // so the scene doesn't blow out once the PBR materials below start
+  // reflecting it; still the same key + rim + hemi arrangement as before.
+  const hemi = new THREE.HemisphereLight(0x3a5570, 0x0a1220, 0.55);
   scene.add(hemi);
-  const key = new THREE.DirectionalLight(0xffffff, 1.35);
+  const key = new THREE.DirectionalLight(0xffffff, 1.2);
   key.position.set(5, 9, 5);
   scene.add(key);
-  const rim = new THREE.DirectionalLight(0x7fa8d9, 0.55);
+  const rim = new THREE.DirectionalLight(0x7fa8d9, 0.4);
   rim.position.set(-6, 4, -6);
   scene.add(rim);
 
@@ -377,6 +394,7 @@ export function createScene(opts: SceneOptions): SceneApi {
     projectPart,
     dispose() {
       disposed = true;
+      scene.environment?.dispose();
       renderer.dispose();
       ro.disconnect();
       // remove DOM this scene attached (keeps React strict-mode remounts clean)
