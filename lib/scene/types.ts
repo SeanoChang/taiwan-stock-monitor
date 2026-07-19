@@ -18,6 +18,14 @@ export interface SceneOptions {
   onReady?: () => void;
   onInteract?: () => void;
   onDepthEnd?: () => void;
+  // Phase F Task 2 — post stack (bloom + SMAA + tone-map/sRGB output) toggle.
+  // `undefined` (the default): on, unless the URL has `?fx=0`/`?fx=false`.
+  // `false`: force it off regardless of the URL (an explicit low-device-tier
+  // flag a future caller can pass). `true`: force it on even under `?fx=0`.
+  // Never a hard dependency — createScene always falls back to
+  // `renderer.render(scene, camera)` (the pre-Phase-F path) when this
+  // resolves to off.
+  fx?: boolean;
 }
 
 export interface SceneApi {

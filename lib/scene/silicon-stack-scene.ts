@@ -3,6 +3,13 @@
 // Public entry point: wires the renderer, level geometry, hotspots and controls together.
 
 import * as THREE from 'three';
+import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
+import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
+import { SMAAPass } from 'three/examples/jsm/postprocessing/SMAAPass.js';
+import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
+import { GammaCorrectionShader } from 'three/examples/jsm/shaders/GammaCorrectionShader.js';
 import { createOrbitControls } from '@/lib/scene/camera';
 import { createGeometryHelpers } from '@/lib/scene/geometry';
 import { mountHotspots, projectHotspots, setHotspotLocale } from '@/lib/scene/hotspots';
@@ -13,7 +20,12 @@ import {
   createGlowMaterials,
   createMaterials,
 } from '@/lib/scene/materials';
-import { activeLevelFor, evalCamera, evaluate } from '@/lib/scene/disassembly-timeline';
+import {
+  activeLevelFor,
+  evalCamera,
+  evalExposure,
+  evaluate,
+} from '@/lib/scene/disassembly-timeline';
 import { ALL_PART_IDS, createPartRegistry } from '@/lib/scene/parts';
 import type {
   CamSpec,
@@ -39,6 +51,23 @@ function isInSubtree(root: THREE.Object3D, node: THREE.Object3D): boolean {
     o = o.parent;
   }
   return false;
+}
+
+/** Resolves the Phase F Task 2 post-stack toggle: `opts.fx === false` forces
+ * it off (an explicit low-device-tier flag); otherwise `?fx=0`/`?fx=false` in
+ * the current URL disables it; anything else (including no query param at
+ * all) leaves it on. createScene always runs client-side (both call sites —
+ * use-scene.ts and scrolly-stage.tsx — import() it inside a mount effect),
+ * so `window` is safe to read here, but the check stays guarded in case a
+ * future caller ever calls this from a non-browser context. */
+function resolveFx(explicit: boolean | undefined): boolean {
+  if (explicit === false) return false;
+  if (explicit === true) return true;
+  if (typeof window !== 'undefined' && window.location) {
+    const q = new URLSearchParams(window.location.search).get('fx');
+    if (q === '0' || q === 'false') return false;
+  }
+  return true;
 }
 
 export function createScene(opts: SceneOptions): SceneApi {
@@ -72,15 +101,79 @@ export function createScene(opts: SceneOptions): SceneApi {
   scene.fog = fog;
   const camera = new THREE.PerspectiveCamera(42, 1, 0.05, 200);
 
-  // lights
-  const hemi = new THREE.HemisphereLight(0x3a5570, 0x0a1220, 1.05);
+  // ---------- image-based lighting ----------
+  // Procedural PMREM studio env (three@0.152's built-in `RoomEnvironment` —
+  // no binary HDRI asset) so every PBR material gets physically-plausible
+  // specular + diffuse IBL instead of punctual lights alone (Phase F Task 1;
+  // docs/superpowers/apple-redesign/02-high-fidelity-rendering). The
+  // generator and its source room scene are one-shot bake inputs — both are
+  // disposed immediately after `scene.environment` is set; only the baked
+  // PMREM texture is kept alive (and is released in api.dispose() below).
+  const pmremGenerator = new THREE.PMREMGenerator(renderer);
+  const envRoom = new RoomEnvironment();
+  scene.environment = pmremGenerator.fromScene(envRoom, 0.04).texture;
+  envRoom.dispose();
+  pmremGenerator.dispose();
+
+  // lights — trimmed now that the env above supplies ambient/specular fill,
+  // so the scene doesn't blow out once the PBR materials below start
+  // reflecting it; still the same key + rim + hemi arrangement as before.
+  const hemi = new THREE.HemisphereLight(0x3a5570, 0x0a1220, 0.55);
   scene.add(hemi);
-  const key = new THREE.DirectionalLight(0xffffff, 1.35);
+  const key = new THREE.DirectionalLight(0xffffff, 1.2);
   key.position.set(5, 9, 5);
   scene.add(key);
-  const rim = new THREE.DirectionalLight(0x7fa8d9, 0.55);
+  const rim = new THREE.DirectionalLight(0x7fa8d9, 0.4);
   rim.position.set(-6, 4, -6);
   scene.add(rim);
+
+  // ---------- post stack (bloom + SMAA) behind ?fx ----------
+  // Phase F Task 2 (docs/superpowers/apple-redesign/02-high-fidelity-rendering).
+  // WebGL-render-path only: explore/scrub/cards/overlays are untouched, and
+  // `?fx=0` (or `opts.fx === false`) yields the exact pre-Phase-F path —
+  // `renderer.render(scene, camera)` — with `composer` simply never built.
+  //
+  // Deviation from the plan/design doc, verified against the installed
+  // three@0.152.2: `three/examples/jsm/postprocessing/OutputPass.js` does not
+  // exist in this version (it landed in three.js after 0.152 — confirmed by
+  // listing node_modules/three/examples/jsm/postprocessing/, which has no
+  // OutputPass.js) — so it isn't used here. In its place: RenderPass already
+  // bakes ACESFilmicToneMapping into the composer's first buffer for free
+  // (WebGLRenderer applies each mesh material's tone-mapped chunk whenever it
+  // renders — on-screen or into a target — so the scene's existing
+  // `renderer.toneMapping = ACESFilmicToneMapping` from above applies here
+  // too), and a final `ShaderPass(GammaCorrectionShader)` (from three@0.152's
+  // examples/jsm/shaders/, also built-in) supplies the sRGB output encoding
+  // that a mid-chain render target skips. Net effect at the screen — ACES
+  // tone mapping + sRGB — matches what OutputPass would have produced; no new
+  // npm dependency either way.
+  const fx = resolveFx(opts.fx);
+  let composer: EffectComposer | null = null;
+  let bloomPass: UnrealBloomPass | null = null;
+  let smaaPass: SMAAPass | null = null;
+  let outputPass: ShaderPass | null = null;
+  if (fx) {
+    const w0 = container.clientWidth || 1,
+      h0 = container.clientHeight || 1;
+    // HalfFloat so bloom's luminance threshold/blur has HDR-ish headroom to
+    // work with, per the design doc's `{ frameBufferType: THREE.HalfFloatType }`
+    // (EffectComposer's ctor takes a WebGLRenderTarget, not an options bag, in
+    // three@0.152 — so the type is threaded through an explicit render target
+    // instead). addPass()'s own setSize() call immediately re-sizes every pass
+    // to the real pixel-ratio'd dimensions below, so the exact w0/h0 given to
+    // the target/passes here only matters as a placeholder.
+    const renderTarget = new THREE.WebGLRenderTarget(w0, h0, { type: THREE.HalfFloatType });
+    composer = new EffectComposer(renderer, renderTarget);
+    composer.setPixelRatio(renderer.getPixelRatio());
+    composer.addPass(new RenderPass(scene, camera));
+    // Subtle — a soft highlight lift, not an HDR bloom-fest.
+    bloomPass = new UnrealBloomPass(new THREE.Vector2(w0, h0), 0.25, 0.4, 0.85);
+    composer.addPass(bloomPass);
+    smaaPass = new SMAAPass(w0, h0);
+    composer.addPass(smaaPass);
+    outputPass = new ShaderPass(GammaCorrectionShader);
+    composer.addPass(outputPass);
+  }
 
   // ---------- levels ----------
   const accents = createAccentRegistry();
@@ -186,6 +279,14 @@ export function createScene(opts: SceneOptions): SceneApi {
     });
     fog.near = levels[lv].fog[0];
     fog.far = levels[lv].fog[1];
+    // Phase F Task 3 — per-chapter exposure track (timeline owns it; see
+    // disassembly-timeline.ts's EXPOSURE_TRACK/evalExposure doc comment).
+    // Explore mode never calls applyDisassembly, so it keeps the renderer's
+    // fixed boot exposure (1.06, set above) untouched — and since scrolly→
+    // explore handoff always disposes this scene instance and mounts a fresh
+    // one (see setMode's doc comment below), that fixed value is exactly
+    // what the next frame renders with; nothing to reset here.
+    renderer.toneMappingExposure = evalExposure(p);
 
     const lidObj = parts.get('lid');
     if (lidObj) lidObj.visible = p >= 0.32 && p < 0.62;
@@ -377,6 +478,16 @@ export function createScene(opts: SceneOptions): SceneApi {
     projectPart,
     dispose() {
       disposed = true;
+      scene.environment?.dispose();
+      // EffectComposer.dispose() only frees its own two ping-pong render
+      // targets (+ its internal copy pass) — it does not walk `this.passes`,
+      // so each pass we added is disposed explicitly here too (RenderPass
+      // owns no GPU resources of its own — just references to scene/camera —
+      // so it has nothing to dispose).
+      bloomPass?.dispose();
+      smaaPass?.dispose();
+      outputPass?.dispose();
+      composer?.dispose();
       renderer.dispose();
       ro.disconnect();
       // remove DOM this scene attached (keeps React strict-mode remounts clean)
@@ -409,7 +520,8 @@ export function createScene(opts: SceneOptions): SceneApi {
     tick(frame);
     if (mode === 'scrolly') applyDisassembly(scrollP);
     else controls.update(camera);
-    renderer.render(scene, camera);
+    if (composer) composer.render();
+    else renderer.render(scene, camera);
     // hotspot projection — explore mode only (scrolly hides every level's DOM
     // layer in applyDisassembly, but skip the projection work entirely too).
     if (mode === 'explore' && cur >= 0 && !animating)
@@ -423,6 +535,10 @@ export function createScene(opts: SceneOptions): SceneApi {
     renderer.setSize(w, h);
     camera.aspect = w / h;
     camera.updateProjectionMatrix();
+    // Size to the container, same as the renderer above (EffectComposer's
+    // setSize scales by the pixel ratio set at construction internally, same
+    // clamped min(dpr,2) the renderer itself uses).
+    composer?.setSize(w, h);
   }
   const ro = new ResizeObserver(resize);
   ro.observe(container);

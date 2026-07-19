@@ -425,3 +425,66 @@ export const CAMERA_TRACK: CamKey[] = [
   // ch7 — fast pull back to the hero rack framing for the CTA row.
   { t0: BOUNDS[7], t1: BOUNDS[8], from: DIE_CAM, to: RACK_CAM },
 ];
+
+// ---------- EXPOSURE_TRACK ----------
+// Phase F Task 3 (docs/superpowers/apple-redesign/02-high-fidelity-rendering)
+// — "the timeline owns per-chapter exposure": `renderer.toneMappingExposure`
+// as a pure function of scroll progress, so the render brightens through the
+// macro package/die/fin chapters (ch5-ch6, where the Task 1 IBL reflections
+// and Task 2 bloom read best up close) and settles back to the hero level
+// for the rack bookends (ch0 and ch7's CTA). Scrolly mode (applyDisassembly,
+// silicon-stack-scene.ts) reads this every frame; explore mode never calls
+// it and keeps the renderer's fixed boot exposure untouched.
+
+export interface ExposureKey {
+  p: number;
+  exposure: number;
+}
+
+/** Matches the renderer's fixed boot/explore-mode exposure (see
+ * `silicon-stack-scene.ts`'s `renderer.toneMappingExposure = 1.06`) — so
+ * scrolly's hero (p=0) and outro (p=1) frames read identically to explore
+ * mode, with no exposure seam on handoff either direction. */
+const HERO_EXPOSURE = 1.06;
+/** Peak brightening held across the package→die→fin macro chapters. */
+const PEAK_EXPOSURE = 1.32;
+
+/** Hard backstop clamp — every evalExposure(p) output falls in this range,
+ * regardless of anchor values above (brief: "clamp to a sane range"). */
+export const EXPOSURE_MIN = 0.8;
+export const EXPOSURE_MAX = 1.4;
+
+/** Anchor points (p, exposure), earliest-first, covering [0,1] — evalExposure
+ * smoothstep-interpolates between consecutive anchors, the same segment-walk
+ * shape as evalCamera above. Held flat at HERO_EXPOSURE through ch0-ch4 (the
+ * rack/server/teardown/subsystems chapters, BOUNDS[0]..BOUNDS[5]), ramps up
+ * across ch5 (the package chapter — HBM/interposer/die separate) to
+ * PEAK_EXPOSURE by the ch6 nanometers/fin chapter (BOUNDS[6]), holds through
+ * ch6, then ramps back down to HERO_EXPOSURE across ch7's reassemble/outro
+ * (BOUNDS[7]..BOUNDS[8]) so the CTA row reads at the same exposure as the
+ * hero. */
+export const EXPOSURE_TRACK: ExposureKey[] = [
+  { p: BOUNDS[0], exposure: HERO_EXPOSURE },
+  { p: BOUNDS[5], exposure: HERO_EXPOSURE },
+  { p: BOUNDS[6], exposure: PEAK_EXPOSURE },
+  { p: BOUNDS[7], exposure: PEAK_EXPOSURE },
+  { p: BOUNDS[8], exposure: HERO_EXPOSURE },
+];
+
+/**
+ * Evaluate EXPOSURE_TRACK at progress p. Pure function of p (no accumulated
+ * state), like evaluate()/evalCamera() above: scrubbing forward then back
+ * reproduces the exact same exposure for a given p. Walks to the anchor
+ * segment containing p, smoothsteps within it, then clamps the result to
+ * [EXPOSURE_MIN, EXPOSURE_MAX] as a hard backstop.
+ */
+export function evalExposure(p: number): number {
+  const pp = clamp01(p);
+  let i = 0;
+  while (i < EXPOSURE_TRACK.length - 2 && pp > EXPOSURE_TRACK[i + 1].p) i++;
+  const a = EXPOSURE_TRACK[i];
+  const b = EXPOSURE_TRACK[i + 1];
+  const t = smooth(range(pp, a.p, b.p - a.p));
+  const v = lerp(a.exposure, b.exposure, t);
+  return Math.min(EXPOSURE_MAX, Math.max(EXPOSURE_MIN, v));
+}
