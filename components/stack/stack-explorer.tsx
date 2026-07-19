@@ -46,6 +46,7 @@ import { useEffect, useMemo, useSyncExternalStore } from 'react';
 import { AxisSwitcher } from '@/components/stack/axis-switcher';
 import { Breadcrumb } from '@/components/stack/breadcrumb';
 import { MiniMap } from '@/components/stack/mini-map';
+import { NodePanel } from '@/components/stack/node-panel';
 import type { Axis, Confidence } from '@/lib/data/stack-tree';
 import { NODE_MAP, childrenOf, rootsOf } from '@/lib/data/stack-tree-nav';
 import { l, pick } from '@/lib/i18n/config';
@@ -57,13 +58,13 @@ import { cn } from '@/lib/utils';
 export interface StackExplorerProps {
   locale: Locale;
   /** Server-fetched `getQuotes()` payload — seeds the shared client quote
-   * cache (see the `useQuotes(quotes)` call below) so Task 4's node-info
-   * panel (supplier quote chips) never has to wait on a client-side
-   * `/api/quotes` round trip the way the home page's scrolly stage does
-   * (that route's own doc explains why it DOESN'T seed: no server payload is
-   * fetched there). This route's server page DOES fetch one, so this is the
-   * "prefer seeding" branch `lib/quotes-client.ts`'s own module doc
-   * recommends. */
+   * cache (see the `useQuotes(quotes)` call below) so `<NodePanel>`'s own
+   * `useQuotes()` call (its supplier quote chips) never has to wait on a
+   * client-side `/api/quotes` round trip the way the home page's scrolly
+   * stage does (that route's own doc explains why it DOESN'T seed: no
+   * server payload is fetched there). This route's server page DOES fetch
+   * one, so this is the "prefer seeding" branch `lib/quotes-client.ts`'s own
+   * module doc recommends. */
   quotes: ClientQuotesPayload | null;
 }
 
@@ -200,13 +201,12 @@ function ChildCard({
 }
 
 export function StackExplorer({ locale, quotes }: StackExplorerProps) {
-  // Seed-only: the shared module-level quote cache (lib/quotes-client.ts) is
-  // what Task 4's node panel will read via its own `useQuotes()` call —
-  // seeding it here, on first mount of this route, means that call resolves
-  // instantly instead of waiting on a fetch. This file's own JSX doesn't
-  // render price data yet (Task 3's children cards show name/badge/supplier
-  // COUNT only, per the brief — live quotes are Task 4's node panel), so the
-  // return value is intentionally unused.
+  // Seed-only here: primes the shared module-level quote cache
+  // (lib/quotes-client.ts) on first mount of this route so `<NodePanel>`'s
+  // own `useQuotes()` call below resolves instantly instead of waiting on a
+  // fetch. This file's own JSX doesn't render price data itself — the
+  // children cards show name/badge/supplier COUNT only; live quotes render
+  // inside `<NodePanel>` — so the return value here is intentionally unused.
   useQuotes(quotes);
 
   const hash = useSyncExternalStore(subscribeHash, getHashSnapshot, getServerHashSnapshot);
@@ -243,14 +243,7 @@ export function StackExplorer({ locale, quotes }: StackExplorerProps) {
 
       <div className="flex flex-col gap-5 lg:flex-row lg:items-start">
         <div className="min-w-0 flex-1">
-          <header className="ss-hairline bg-card flex flex-wrap items-center gap-2.5 rounded-[var(--radius-lg)] border px-5 py-4">
-            <h2 className="text-[19px] font-semibold">{pick(node.name, locale)}</h2>
-            {node.companyIds && node.companyIds.length > 0 && (
-              <span className="text-tertiary text-[11.5px]">
-                {node.companyIds.length} {pick(SUPPLIERS_LABEL, locale)}
-              </span>
-            )}
-          </header>
+          <NodePanel node={node} locale={locale} />
 
           <ul className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {childIds.length === 0 ? (
