@@ -36,7 +36,7 @@
 // cheaper and simpler than an effect that watches `rootId`.
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { RefObject } from 'react';
+import type { MouseEvent as ReactMouseEvent, RefObject } from 'react';
 import { createPortal } from 'react-dom';
 import { ADJ, layoutBranches, rankAlters } from '@/lib/data/adjacency';
 import type { Alter, BranchPoint } from '@/lib/data/adjacency';
@@ -170,22 +170,27 @@ function BranchLabel({
   );
 }
 
-/** One alter: fanned chip that pivots the ego on hover *or* click (mouse),
- * and on Enter/click via native `<button>` semantics (keyboard) — matching
- * the design doc's "hover an alter → pivot" plus the brief's "Enter=pivot".
- * ≥44px hit target on both axes. */
+/** One alter: fanned chip that pivots the ego. Desktop hover pivots via
+ * `onHoverPivot` (the design doc's "hover an alter → pivot"); `onClickPivot`
+ * covers keyboard `Enter`/`Space` (native `<button>` click semantics) and
+ * touch tap. The two are separate props, not one shared handler, because a
+ * real mouse click is *always* preceded by its own `mouseenter` — see
+ * `BranchOverlay`'s `onAlterClickPivot` for why firing both unconditionally
+ * on the same click double-pivots. ≥44px hit target on both axes. */
 function AlterChip({
   alter,
   point,
   quotes,
   locale,
-  onPivot,
+  onHoverPivot,
+  onClickPivot,
 }: {
   alter: Alter;
   point: BranchPoint;
   quotes: ClientQuotesPayload | null;
   locale: Locale;
-  onPivot: (id: string) => void;
+  onHoverPivot: (id: string) => void;
+  onClickPivot: (id: string, e: ReactMouseEvent<HTMLButtonElement>) => void;
 }) {
   const company = COMPANY_MAP[alter.id];
   if (!company) return null;
@@ -198,8 +203,8 @@ function AlterChip({
   return (
     <button
       type="button"
-      onMouseEnter={() => onPivot(alter.id)}
-      onClick={() => onPivot(alter.id)}
+      onMouseEnter={() => onHoverPivot(alter.id)}
+      onClick={(e) => onClickPivot(alter.id, e)}
       aria-label={pivotLabel}
       style={{ left: `calc(50% + ${point.x}px)`, top: `calc(50% + ${point.y}px)` }}
       className="ss-hairline bg-secondary hover:border-primary hover:bg-accent focus-visible:ring-ring absolute flex min-h-11 w-[136px] -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-0.5 rounded-[var(--radius-md)] border px-2.5 py-2 text-center transition-colors outline-none focus-visible:ring-2"
@@ -248,12 +253,14 @@ function BranchCluster({
   ego,
   quotes,
   locale,
-  onPivot,
+  onHoverPivot,
+  onClickPivot,
 }: {
   ego: string;
   quotes: ClientQuotesPayload | null;
   locale: Locale;
-  onPivot: (id: string) => void;
+  onHoverPivot: (id: string) => void;
+  onClickPivot: (id: string, e: ReactMouseEvent<HTMLButtonElement>) => void;
 }) {
   const [tailOpen, setTailOpen] = useState(false);
   const egoCompany = COMPANY_MAP[ego];
@@ -334,7 +341,8 @@ function BranchCluster({
           point={points[i]}
           quotes={quotes}
           locale={locale}
-          onPivot={onPivot}
+          onHoverPivot={onHoverPivot}
+          onClickPivot={onClickPivot}
         />
       ))}
 
@@ -362,6 +370,37 @@ export function BranchOverlay({ rootId, quotes, locale, onClose, onDeepLink }: B
 
   const pivot = (id: string) => setTrail((prev) => [...prev, id]);
   const jumpBack = (i: number) => setTrail((prev) => prev.slice(0, i + 1));
+
+  // A real (or touch-synthesized) mouse click on an `AlterChip` is *always*
+  // preceded by that same physical gesture's own `mouseenter` — hovering is
+  // literally how a pointer arrives at the element it's about to click. Both
+  // handlers pivoting unconditionally meant every ordinary click double-
+  // pivoted: the hover's `pivot()` swaps in a freshly re-laid-out
+  // `BranchCluster` (new ego, new alters, new positions) *before* the click
+  // event lands, so that second pivot doesn't even repeat the hover's own
+  // target — it fires on whatever unrelated alter now happens to occupy the
+  // same screen coordinates, silently corrupting the trail (confirmed via
+  // Phase E Task 5 browser smoke: a single click produced a 3-deep trail
+  // instead of 1). `onAlterHoverPivot` is unchanged (still the primary
+  // desktop affordance the design doc calls out); `onAlterClickPivot`
+  // additionally records *when* a hover last pivoted and skips a `click`
+  // that lands within `HOVER_CLICK_GUARD_MS` of it — long enough to absorb
+  // the same gesture's own click (same-tick dispatch, no human reaction time
+  // involved) but far shorter than any real second, deliberate action. A
+  // keyboard-activated click (`Enter`/`Space` on a focused, un-hovered
+  // button) always has `event.detail === 0` — MouseEvent's standard "not a
+  // real pointer click" signal — so it bypasses the guard entirely and
+  // always pivots, keeping Tab/Enter navigation exact regardless of timing.
+  const lastHoverPivotAtRef = useRef(0);
+  const HOVER_CLICK_GUARD_MS = 200;
+  const onAlterHoverPivot = (id: string) => {
+    lastHoverPivotAtRef.current = Date.now();
+    pivot(id);
+  };
+  const onAlterClickPivot = (id: string, e: ReactMouseEvent<HTMLButtonElement>) => {
+    if (e.detail !== 0 && Date.now() - lastHoverPivotAtRef.current < HOVER_CLICK_GUARD_MS) return;
+    pivot(id);
+  };
 
   // Esc closes from anywhere in the overlay, not just when a specific
   // element has focus — a document-level listener, torn down with the
@@ -444,7 +483,14 @@ export function BranchOverlay({ rootId, quotes, locale, onClose, onDeepLink }: B
         </div>
 
         <div className="flex flex-1 items-center justify-center">
-          <BranchCluster key={ego} ego={ego} quotes={quotes} locale={locale} onPivot={pivot} />
+          <BranchCluster
+            key={ego}
+            ego={ego}
+            quotes={quotes}
+            locale={locale}
+            onHoverPivot={onAlterHoverPivot}
+            onClickPivot={onAlterClickPivot}
+          />
         </div>
 
         <button
