@@ -19,6 +19,7 @@ import type {
   CamSpec,
   Level,
   LevelContext,
+  PartId,
   SceneApi,
   SceneMode,
   SceneOptions,
@@ -26,6 +27,19 @@ import type {
 import type { Locale } from '@/lib/i18n/config';
 
 export type { SceneApi, SceneOptions } from '@/lib/scene/types';
+
+/** True if `node` is `root` or a descendant of it (walks `.parent`). Used by
+ * projectPart's occlusion raycast to ignore self-hits — a part's own anchor
+ * often sits inside its own solid geometry, which would otherwise "occlude"
+ * itself. */
+function isInSubtree(root: THREE.Object3D, node: THREE.Object3D): boolean {
+  let o: THREE.Object3D | null = node;
+  while (o) {
+    if (o === root) return true;
+    o = o.parent;
+  }
+  return false;
+}
 
 export function createScene(opts: SceneOptions): SceneApi {
   const {
@@ -195,6 +209,82 @@ export function createScene(opts: SceneOptions): SceneApi {
     camera.lookAt(ctl.target);
   }
 
+  // ---------- Phase D — part projection + throttled occlusion ----------
+  // Reused scratch objects (mirrors hotspots.ts's module-level `v`/`camWorld`
+  // reuse pattern) — safe because every projectPart() call fully consumes
+  // them synchronously before returning, so nothing can observe a
+  // mid-mutation value across calls.
+  const raycaster = new THREE.Raycaster();
+  const pAnchor = new THREE.Vector3();
+  const pNdc = new THREE.Vector3();
+  const pCamWorld = new THREE.Vector3();
+  const pRayDir = new THREE.Vector3();
+  // Per-id occlusion cache — raycasting every candidate part every frame is
+  // wasted work (occlusion changes slowly relative to scroll/orbit speed),
+  // so each id's `occluded` flag is only recomputed once per TTL.
+  const occlusionCache = new Map<string, { occluded: boolean; t: number }>();
+  const OCCLUSION_TTL_MS = 150;
+
+  /** The level whose group is actually visible right now, in either mode —
+   * scrolly derives it from scroll progress the same way applyDisassembly
+   * does; explore just reads the current zoom level. */
+  function activeLevelIndex(): number {
+    return mode === 'scrolly' ? activeLevelFor(scrollP) : cur;
+  }
+
+  function projectPart(
+    id: PartId,
+    anchor: [number, number, number] = [0, 0, 0],
+  ): { x: number; y: number; onScreen: boolean; occluded: boolean } | null {
+    const obj = parts.get(id);
+    if (!obj || !obj.visible) return null;
+
+    // World anchor: the part's local-space anchor point (default its own
+    // origin) carried through its current world matrix.
+    obj.updateWorldMatrix(true, false);
+    const w = obj.localToWorld(pAnchor.set(anchor[0], anchor[1], anchor[2]));
+
+    // Project to px — identical NDC→px math to projectHotspots (hotspots.ts).
+    const W = container.clientWidth,
+      H = container.clientHeight;
+    pNdc.copy(w).project(camera);
+    const x = ((pNdc.x + 1) / 2) * W,
+      y = ((1 - pNdc.y) / 2) * H;
+    const onScreen = pNdc.z <= 1 && x >= 0 && x <= W && y >= 0 && y <= H;
+
+    // Occlusion — throttled raycast from the camera toward the world anchor
+    // against the active level's meshes only (an inactive level's group is
+    // `visible = false`, and three.js's raycaster already skips invisible
+    // subtrees, so this can't false-occlude against a hidden level/lid).
+    const now = performance.now();
+    const cached = occlusionCache.get(id);
+    let occluded: boolean;
+    if (cached && now - cached.t < OCCLUSION_TTL_MS) {
+      occluded = cached.occluded;
+    } else {
+      occluded = false;
+      camera.getWorldPosition(pCamWorld);
+      const dist = pCamWorld.distanceTo(w);
+      const lv = levels[activeLevelIndex()];
+      if (lv && dist > 1e-6) {
+        pRayDir.copy(w).sub(pCamWorld).normalize();
+        raycaster.set(pCamWorld, pRayDir);
+        raycaster.near = 0;
+        raycaster.far = dist;
+        const hits = raycaster.intersectObject(lv.group, true);
+        // "Meaningfully closer" margin, scaled with distance so it holds
+        // across the scene's very different zoom levels (rack vs. die) —
+        // and skip hits inside the anchored part's own subtree, since the
+        // anchor commonly sits inside (not on the surface of) its geometry.
+        const eps = Math.max(0.08, dist * 0.015);
+        occluded = hits.some((h) => h.distance < dist - eps && !isInSubtree(obj, h.object));
+      }
+      occlusionCache.set(id, { occluded, t: now });
+    }
+
+    return { x, y, onScreen, occluded };
+  }
+
   const api: SceneApi = {
     async goLevel(i: number) {
       i = Math.max(0, Math.min(levels.length - 1, i));
@@ -284,6 +374,7 @@ export function createScene(opts: SceneOptions): SceneApi {
     setScrollProgress(p: number) {
       scrollP = p;
     },
+    projectPart,
     dispose() {
       disposed = true;
       renderer.dispose();

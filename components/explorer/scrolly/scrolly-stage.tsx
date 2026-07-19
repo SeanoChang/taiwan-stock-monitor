@@ -21,15 +21,31 @@
 // fires: input passes straight through to the page instead of being
 // captured for orbit-zoom/drag. `lib/scene/camera.ts` is untouched (out of
 // this task's file scope; a mode-aware fix there is a reasonable follow-up).
+//
+// Hardware callouts (Plan 006 Phase D, Task 5): once the scene api exists
+// (`sceneApi` state below, set the moment `createScene()` resolves — a ref
+// read can't gate JSX per the `react-hooks/refs` lint rule Task 4's own
+// review already hit, hence a plain state mirror of `apiRef.current` instead
+// of reading the ref directly in render), this stage mounts BOTH
+// <CalloutLayer> (desktop: anchored cards + leader lines) and
+// <CalloutDrawer> (mobile: numbered dots + bottom drawer) permanently, and
+// lets Tailwind's `sm:` breakpoint pick which one is visible via a
+// `display:none` ancestor — the same technique chapter-rail.tsx already uses
+// for its own desktop-rail/mobile-strip pair. `useQuotes()` is called with
+// no seed: `app/page.tsx` doesn't fetch a server-side quotes payload for
+// this route, so this is the "(else it fetches)" branch the brief allows.
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { RefObject } from 'react';
 import { Button } from '@/components/ui/button';
 import { useScrollProgress } from '@/components/explorer/scrolly/use-scroll-progress';
+import { CalloutLayer } from '@/components/explorer/annotations/callout-layer';
+import { CalloutDrawer } from '@/components/explorer/annotations/callout-drawer';
 import { CHAPTERS } from '@/lib/scene/disassembly-timeline';
 import { l, pick } from '@/lib/i18n/config';
 import type { Locale } from '@/lib/i18n/config';
 import type { SceneApi } from '@/lib/scene/silicon-stack-scene';
+import { useQuotes } from '@/lib/quotes-client';
 import { cn } from '@/lib/utils';
 
 const HANDOFF_LABEL = l('Free explore', '自由探索');
@@ -79,8 +95,15 @@ export function ScrollyStage({ wrapperRef, locale, accent, onHandoff }: ScrollyS
   const apiRef = useRef<SceneApi | null>(null);
   const [ready, setReady] = useState(false);
   const [handedOff, setHandedOff] = useState(false);
+  // State mirror of apiRef.current — see the module doc comment above for
+  // why CalloutLayer/CalloutDrawer can't just gate on a ref read in JSX.
+  const [sceneApi, setSceneApi] = useState<SceneApi | null>(null);
 
   const { progressRef, scrollToChapter, reducedMotion } = useScrollProgress(wrapperRef);
+  // Shared across CalloutLayer + CalloutDrawer so both read one payload
+  // instead of each polling /api/quotes independently — same reason
+  // hardware-card.tsx's module doc gives for taking `quotes` as a prop.
+  const quotes = useQuotes();
 
   // Live-read inside the mount-once effect's rAF loop below without adding
   // `reducedMotion` as a dependency (which would tear down and recreate the
@@ -121,6 +144,9 @@ export function ScrollyStage({ wrapperRef, locale, accent, onHandoff }: ScrollyS
         });
         api.setMode('scrolly');
         apiRef.current = api;
+        // One-time, at scene-creation, not per frame — same rule as the
+        // pre-existing `onReady: () => setReady(true)` a few lines above.
+        setSceneApi(api);
         const tick = () => {
           const p = reducedMotionRef.current
             ? nearestChapterRestP(progressRef.current)
@@ -188,6 +214,34 @@ export function ScrollyStage({ wrapperRef, locale, accent, onHandoff }: ScrollyS
             'radial-gradient(ellipse at 50% 42%, transparent 55%, rgba(4,10,18,0.55) 100%)',
         }}
       />
+
+      {/* Depth-gated hardware callouts — over the stage, below chrome (the
+       * handoff button / reduced-motion nav below sit at z-10, matching
+       * CalloutDrawer's own drawer-bar z-10; CalloutLayer's z-[7]/z-[9] and
+       * CalloutDrawer's dot z-[9] stay under the ready spinner's z-20). Both
+       * mount permanently once the scene api exists; only one is ever
+       * visible at a time via the `sm:` breakpoint toggle described in the
+       * module doc comment above. */}
+      {!handedOff && sceneApi && (
+        <>
+          <div className="hidden sm:block">
+            <CalloutLayer
+              api={sceneApi}
+              progressRef={progressRef}
+              locale={locale}
+              quotes={quotes}
+            />
+          </div>
+          <div className="sm:hidden">
+            <CalloutDrawer
+              api={sceneApi}
+              progressRef={progressRef}
+              locale={locale}
+              quotes={quotes}
+            />
+          </div>
+        </>
+      )}
 
       {!handedOff && (
         <Button
