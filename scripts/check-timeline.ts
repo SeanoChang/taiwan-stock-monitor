@@ -5,9 +5,12 @@ import { clamp01, range, curve } from '../lib/scene/scroll-math';
 import {
   evaluate,
   evalCamera,
+  evalExposure,
   CHAPTERS,
   activeLevelFor,
   CAMERA_TRACK,
+  EXPOSURE_MIN,
+  EXPOSURE_MAX,
 } from '../lib/scene/disassembly-timeline';
 
 const errors: string[] = [];
@@ -32,6 +35,14 @@ if (a !== b) err('evaluate is not a pure function of p (drift!)');
 for (const p of [0, 0.25, 0.5, 0.75, 1]) {
   const c = evalCamera(p);
   if (!c || typeof c.r !== 'number') err(`evalCamera(${p}) invalid`);
+}
+
+// exposure track (Phase F Task 3) — finite and clamp-bounded across [0,1]
+for (const p of [0, 0.25, 0.5, 0.75, 1]) {
+  const e = evalExposure(p);
+  if (!Number.isFinite(e) || e < EXPOSURE_MIN || e > EXPOSURE_MAX) {
+    err(`evalExposure(${p})=${e} out of [${EXPOSURE_MIN}, ${EXPOSURE_MAX}]`);
+  }
 }
 
 // chapters contiguous cover [0,1]; activeLevel in 0..3

@@ -20,7 +20,12 @@ import {
   createGlowMaterials,
   createMaterials,
 } from '@/lib/scene/materials';
-import { activeLevelFor, evalCamera, evaluate } from '@/lib/scene/disassembly-timeline';
+import {
+  activeLevelFor,
+  evalCamera,
+  evalExposure,
+  evaluate,
+} from '@/lib/scene/disassembly-timeline';
 import { ALL_PART_IDS, createPartRegistry } from '@/lib/scene/parts';
 import type {
   CamSpec,
@@ -274,6 +279,14 @@ export function createScene(opts: SceneOptions): SceneApi {
     });
     fog.near = levels[lv].fog[0];
     fog.far = levels[lv].fog[1];
+    // Phase F Task 3 — per-chapter exposure track (timeline owns it; see
+    // disassembly-timeline.ts's EXPOSURE_TRACK/evalExposure doc comment).
+    // Explore mode never calls applyDisassembly, so it keeps the renderer's
+    // fixed boot exposure (1.06, set above) untouched — and since scrolly→
+    // explore handoff always disposes this scene instance and mounts a fresh
+    // one (see setMode's doc comment below), that fixed value is exactly
+    // what the next frame renders with; nothing to reset here.
+    renderer.toneMappingExposure = evalExposure(p);
 
     const lidObj = parts.get('lid');
     if (lidObj) lidObj.visible = p >= 0.32 && p < 0.62;
