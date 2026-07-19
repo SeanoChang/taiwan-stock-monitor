@@ -15,7 +15,8 @@
     "check:timeline": "tsx scripts/check-timeline.ts",
     "check:hardware": "tsx scripts/check-hardware.ts",
     "check:branches": "tsx scripts/check-branches.ts",
-    "test": "pnpm check:data && pnpm check:parts && pnpm check:timeline && pnpm check:hardware && pnpm check:branches"
+    "check:tree": "tsx scripts/check-tree.ts",
+    "test": "pnpm check:data && pnpm check:parts && pnpm check:timeline && pnpm check:hardware && pnpm check:branches && pnpm check:tree"
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",
