@@ -34,13 +34,33 @@
 // for its own desktop-rail/mobile-strip pair. `useQuotes()` is called with
 // no seed: `app/page.tsx` doesn't fetch a server-side quotes payload for
 // this route, so this is the "(else it fetches)" branch the brief allows.
+//
+// Branch overlay + tier ribbon (Plan 006 Phase E, Task 4): this component
+// owns `openEgo` — which company's ego-network quick-look, if any, is open —
+// and mounts the actual `<BranchOverlay>`. `hardware-card.tsx`'s
+// `BranchOverlayContext.Provider`, wrapped around this whole stage below, is
+// how each card's company chip (nested under <CalloutLayer>) reaches
+// `openBranch` without CalloutLayer/CalloutDrawer needing a new prop — see
+// that context's own module doc for why. `<TierRibbon>` reads `progressRef`
+// itself (chapter glow, never via setState) and gets `activeStages` — the
+// tier groups the open overlay's ego + alters touch — recomputed only on an
+// `openEgo` change (a hover/tap event, not a scroll frame), so this stays a
+// plain `useState`/`useMemo`, same reasoning branch-overlay.tsx's own module
+// doc gives for its own state.
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { RefObject } from 'react';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { useScrollProgress } from '@/components/explorer/scrolly/use-scroll-progress';
 import { CalloutLayer } from '@/components/explorer/annotations/callout-layer';
 import { CalloutDrawer } from '@/components/explorer/annotations/callout-drawer';
+import { BranchOverlayContext } from '@/components/explorer/annotations/hardware-card';
+import { BranchOverlay } from '@/components/explorer/branches/branch-overlay';
+import { TierRibbon } from '@/components/explorer/branches/tier-ribbon';
+import { ADJ, rankAlters } from '@/lib/data/adjacency';
+import { CATEGORY_MAP, COMPANY_MAP } from '@/lib/data/supply-chain';
+import type { StageId } from '@/lib/data/supply-chain';
 import { CHAPTERS } from '@/lib/scene/disassembly-timeline';
 import { l, pick } from '@/lib/i18n/config';
 import type { Locale } from '@/lib/i18n/config';
@@ -50,6 +70,36 @@ import { cn } from '@/lib/utils';
 
 const HANDOFF_LABEL = l('Free explore', '自由探索');
 const CHAPTERS_LABEL = l('Chapters', '章節');
+
+// Mirrors tier-ribbon.tsx's own TIERS group numbers — itself a deliberate
+// duplicate of components/graph/graph-model.ts's STAGE_GROUP, off-limits to
+// the explorer (see that file's module doc on layer hygiene) — so an open
+// branch overlay's touched tiers can be computed here without importing
+// components/graph/* OR reaching into tier-ribbon.tsx's own private TIERS
+// array (out of this task's file scope). Same "cheaper to copy than share"
+// precedent this codebase already applies to `chapterIndexFor` across four
+// files.
+const GROUP_OF: Record<StageId, number> = {
+  materials: 0,
+  wafer: 0,
+  fabsupport: 1,
+  chip: 2,
+  package: 3,
+  board: 4,
+  subsystem: 5,
+  system: 6,
+  cloud: 7,
+  anchor: 8, // never lit — TierRibbon's own TIERS stop at group 7 (雲端/Cloud)
+};
+
+/** A company's tier `group` via its category's stage — `undefined` for an
+ * unknown id (never happens for a real `ADJ`/`COMPANY_MAP` entry, but keeps
+ * this total rather than throwing on a stale/unexpected id). */
+function groupOfCompany(id: string): number | undefined {
+  const company = COMPANY_MAP[id];
+  const stage = company && CATEGORY_MAP[company.cat]?.stage;
+  return stage ? GROUP_OF[stage] : undefined;
+}
 
 /** The chapter whose [p0,p1) window contains p — same rule as chapter-
  * rail.tsx's own helper (duplicated: it isn't exported, and this is a few
@@ -104,6 +154,55 @@ export function ScrollyStage({ wrapperRef, locale, accent, onHandoff }: ScrollyS
   // instead of each polling /api/quotes independently — same reason
   // hardware-card.tsx's module doc gives for taking `quotes` as a prop.
   const quotes = useQuotes();
+
+  // Plan 006 Phase E, Task 4: which company's ego-network quick-look is
+  // open, if any — set by a hover/click event via BranchOverlayContext
+  // (hardware-card.tsx), never from an rAF/scroll frame, so plain useState
+  // is the right tool (see that context's own module doc).
+  const router = useRouter();
+  const [openEgo, setOpenEgo] = useState<string | null>(null);
+  const openBranch = useCallback((id: string) => setOpenEgo(id), []);
+  const closeBranch = useCallback(() => setOpenEgo(null), []);
+  // `在圖譜中檢視` inside the overlay — deep-links the current ego (which may
+  // be several pivots deep) into the full graph's existing `focus` query
+  // param (app/supply-chain/page.tsx already validates it against
+  // COMPANY_MAP).
+  const handleDeepLink = useCallback(
+    (id: string) => {
+      setOpenEgo(null);
+      router.push(`/supply-chain?focus=${id}`);
+    },
+    [router],
+  );
+  // Tier-ribbon tile click — group-filter deep link (no `focus` id; TIERS'
+  // `group` numbers line up 1:1 with graph-model.ts's own STAGE_GROUP, ready
+  // for that page to read a `group` query param, whether or not it does so
+  // yet).
+  const handleTier = useCallback(
+    (group: number) => {
+      router.push(`/supply-chain?group=${group}`);
+    },
+    [router],
+  );
+
+  // Tier groups the open overlay's ego + its fanned alters touch —
+  // tier-ribbon.tsx's own module doc calls this out as "Task 4 computes this
+  // from the ego + each alter's own company stage". `rankAlters`' own
+  // default cap (8) matches BranchOverlay's MAX_FANNED, i.e. what's visible
+  // before any "+N" tail expands (a private UI-only toggle BranchOverlay
+  // doesn't report upward — see its own module doc). Recomputed only when
+  // `openEgo` changes, not per frame.
+  const activeStages = useMemo(() => {
+    if (!openEgo) return undefined;
+    const groups = new Set<number>();
+    const addGroup = (id: string) => {
+      const g = groupOfCompany(id);
+      if (g !== undefined) groups.add(g);
+    };
+    addGroup(openEgo);
+    for (const alter of rankAlters(ADJ.get(openEgo) ?? [])) addGroup(alter.id);
+    return groups;
+  }, [openEgo]);
 
   // Live-read inside the mount-once effect's rAF loop below without adding
   // `reducedMotion` as a dependency (which would tear down and recreate the
@@ -179,106 +278,160 @@ export function ScrollyStage({ wrapperRef, locale, accent, onHandoff }: ScrollyS
   const handleHandoff = useCallback(() => {
     apiRef.current?.setMode('explore');
     setHandedOff(true);
+    setOpenEgo(null);
     onHandoff();
   }, [onHandoff]);
 
   return (
-    <div
-      className={cn(
-        // `sticky top-0` keeps the stage visually pinned to the viewport for
-        // the whole ~800vh scroll span regardless of motion preference. That
-        // is not the scroll-jacking prefers-reduced-motion guards against —
-        // no GSAP ScrollTrigger pin/scrub ever runs under reduced motion (see
-        // useScrollProgress); the browser scrolls this page at its own
-        // uncontrolled, native 1:1 speed either way, only the progress
-        // *source* differs. Making this conditional on `!reducedMotion` (as
-        // an earlier pass did) let the stage — canvas, 自由探索 toggle, and
-        // this file's own stepped-chapter strip below — scroll out of view
-        // after the first viewport under reduced motion, leaving every
-        // chapter past the first as a blank page (caught by Phase C Task 6's
-        // acceptance smoke test).
-        'scrolly-stage bg-background sticky top-0 h-svh w-full overflow-hidden',
-      )}
-    >
+    // Plan 006 Phase E, Task 4: provides `openBranch` to every HardwareCard
+    // company chip nested under CalloutLayer/CalloutDrawer below, however
+    // deep — see hardware-card.tsx's BranchOverlayContext module doc for why
+    // this is a Provider rather than a prop threaded through those two
+    // (out-of-scope) components.
+    <BranchOverlayContext.Provider value={openBranch}>
       <div
-        ref={canvasRef}
-        className={cn('absolute inset-0', !handedOff && 'pointer-events-none')}
-      />
-      <div ref={layerRef} className="pointer-events-none absolute inset-0 z-[6]" />
+        className={cn(
+          // `sticky top-0` keeps the stage visually pinned to the viewport for
+          // the whole ~800vh scroll span regardless of motion preference. That
+          // is not the scroll-jacking prefers-reduced-motion guards against —
+          // no GSAP ScrollTrigger pin/scrub ever runs under reduced motion (see
+          // useScrollProgress); the browser scrolls this page at its own
+          // uncontrolled, native 1:1 speed either way, only the progress
+          // *source* differs. Making this conditional on `!reducedMotion` (as
+          // an earlier pass did) let the stage — canvas, 自由探索 toggle, and
+          // this file's own stepped-chapter strip below — scroll out of view
+          // after the first viewport under reduced motion, leaving every
+          // chapter past the first as a blank page (caught by Phase C Task 6's
+          // acceptance smoke test).
+          'scrolly-stage bg-background sticky top-0 h-svh w-full overflow-hidden',
+        )}
+      >
+        <div
+          ref={canvasRef}
+          className={cn('absolute inset-0', !handedOff && 'pointer-events-none')}
+        />
+        <div ref={layerRef} className="pointer-events-none absolute inset-0 z-[6]" />
 
-      {/* vignette, matching the explore-mode stage's framing */}
-      <div
-        className="pointer-events-none absolute inset-0 z-[4]"
-        style={{
-          background:
-            'radial-gradient(ellipse at 50% 42%, transparent 55%, rgba(4,10,18,0.55) 100%)',
-        }}
-      />
+        {/* vignette, matching the explore-mode stage's framing */}
+        <div
+          className="pointer-events-none absolute inset-0 z-[4]"
+          style={{
+            background:
+              'radial-gradient(ellipse at 50% 42%, transparent 55%, rgba(4,10,18,0.55) 100%)',
+          }}
+        />
 
-      {/* Depth-gated hardware callouts — over the stage, below chrome (the
-       * handoff button / reduced-motion nav below sit at z-10, matching
-       * CalloutDrawer's own drawer-bar z-10; CalloutLayer's z-[7]/z-[9] and
-       * CalloutDrawer's dot z-[9] stay under the ready spinner's z-20). Both
-       * mount permanently once the scene api exists; only one is ever
-       * visible at a time via the `sm:` breakpoint toggle described in the
-       * module doc comment above. */}
-      {!handedOff && sceneApi && (
-        <>
-          <div className="hidden sm:block">
-            <CalloutLayer
-              api={sceneApi}
-              progressRef={progressRef}
-              locale={locale}
-              quotes={quotes}
-            />
+        {/* Depth-gated hardware callouts — over the stage, below chrome (the
+         * handoff button / reduced-motion nav below sit at z-10, matching
+         * CalloutDrawer's own drawer-bar z-10; CalloutLayer's z-[7]/z-[9] and
+         * CalloutDrawer's dot z-[9] stay under the ready spinner's z-20). Both
+         * mount permanently once the scene api exists; only one is ever
+         * visible at a time via the `sm:` breakpoint toggle described in the
+         * module doc comment above. */}
+        {!handedOff && sceneApi && (
+          <>
+            <div className="hidden sm:block">
+              <CalloutLayer
+                api={sceneApi}
+                progressRef={progressRef}
+                locale={locale}
+                quotes={quotes}
+              />
+            </div>
+            <div className="sm:hidden">
+              <CalloutDrawer
+                api={sceneApi}
+                progressRef={progressRef}
+                locale={locale}
+                quotes={quotes}
+              />
+            </div>
+          </>
+        )}
+
+        {!handedOff && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleHandoff}
+            className="ss-veil pointer-events-auto absolute top-6 right-6 z-10 min-h-11 rounded-full text-xs font-semibold tracking-wide"
+          >
+            {pick(HANDOFF_LABEL, locale)}
+          </Button>
+        )}
+
+        {/* Reduced motion: no continuous scrub feel to navigate by — a small
+         * stepped chapter strip sets discrete p via a direct scroll jump.
+         * `bottom-16` (not the pre-Phase-E `bottom-6`): TierRibbon below is
+         * now permanently docked at `bottom-0` whenever this nav can be
+         * visible (both gate on `!handedOff`, this one adds `reducedMotion`),
+         * ~56-60px tall itself — bumped up to clear it with a few px to
+         * spare rather than the two fighting over the same strip. */}
+        {!handedOff && reducedMotion && (
+          <nav
+            aria-label={pick(CHAPTERS_LABEL, locale)}
+            className="ss-veil pointer-events-auto absolute inset-x-0 bottom-16 z-10 mx-auto flex w-fit max-w-[calc(100%-48px)] items-center gap-1 overflow-x-auto rounded-full border px-2 py-2"
+          >
+            {CHAPTERS.map((ch, i) => (
+              <button
+                key={ch.id}
+                type="button"
+                onClick={() => scrollToChapter(i)}
+                className="text-foreground/70 hover:text-foreground inline-flex min-h-11 flex-none items-center justify-center rounded-full px-3 py-1.5 text-xs font-semibold tracking-wide whitespace-nowrap transition-colors"
+              >
+                {pick(ch.eyebrow, locale)}
+              </button>
+            ))}
+          </nav>
+        )}
+
+        {!ready && (
+          <div className="bg-background pointer-events-none absolute inset-0 z-20 flex items-center justify-center">
+            <div className="border-foreground/15 border-t-primary size-[26px] animate-[spin_0.9s_linear_infinite] rounded-full border-2" />
           </div>
-          <div className="sm:hidden">
-            <CalloutDrawer
-              api={sceneApi}
-              progressRef={progressRef}
-              locale={locale}
-              quotes={quotes}
-            />
-          </div>
-        </>
-      )}
+        )}
 
-      {!handedOff && (
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleHandoff}
-          className="ss-veil pointer-events-auto absolute top-6 right-6 z-10 min-h-11 rounded-full text-xs font-semibold tracking-wide"
-        >
-          {pick(HANDOFF_LABEL, locale)}
-        </Button>
-      )}
+        {/* Plan 006 Phase E, Task 4: the 9-tier chain ribbon — fixed bottom,
+         * above the canvas (z-[6]) and every callout layer (z-[7]/z-[9] card
+         * layer, same numeric z as this but spatially clear — CalloutLayer's
+         * own MARGIN_BOTTOM keeps cards off this strip), below the 自由探索
+         * button / reduced-motion strip / ready spinner (z-10/z-20). Chapter
+         * glow is entirely self-driven off `progressRef` (its own rAF loop,
+         * never setState-per-frame — see tier-ribbon.tsx); `activeStages`
+         * only changes on the hover/tap-driven `openEgo` above. Unmounts along
+         * with the rest of this stage's `!handedOff` chrome the instant
+         * ScrollyHome swaps this whole component out for SiliconStackExplorer
+         * post-handoff. */}
+        {!handedOff && (
+          <TierRibbon
+            progressRef={progressRef}
+            activeStages={activeStages}
+            onTier={handleTier}
+            locale={locale}
+          />
+        )}
 
-      {/* Reduced motion: no continuous scrub feel to navigate by — a small
-       * stepped chapter strip sets discrete p via a direct scroll jump. */}
-      {!handedOff && reducedMotion && (
-        <nav
-          aria-label={pick(CHAPTERS_LABEL, locale)}
-          className="ss-veil pointer-events-auto absolute inset-x-0 bottom-6 z-10 mx-auto flex w-fit max-w-[calc(100%-48px)] items-center gap-1 overflow-x-auto rounded-full border px-2 py-2"
-        >
-          {CHAPTERS.map((ch, i) => (
-            <button
-              key={ch.id}
-              type="button"
-              onClick={() => scrollToChapter(i)}
-              className="text-foreground/70 hover:text-foreground inline-flex min-h-11 flex-none items-center justify-center rounded-full px-3 py-1.5 text-xs font-semibold tracking-wide whitespace-nowrap transition-colors"
-            >
-              {pick(ch.eyebrow, locale)}
-            </button>
-          ))}
-        </nav>
-      )}
-
-      {!ready && (
-        <div className="bg-background pointer-events-none absolute inset-0 z-20 flex items-center justify-center">
-          <div className="border-foreground/15 border-t-primary size-[26px] animate-[spin_0.9s_linear_infinite] rounded-full border-2" />
-        </div>
-      )}
-    </div>
+        {/* Plan 006 Phase E, Task 4: the ego-network quick-look a hardware
+         * card's company chip opens (hover desktop / tap mobile), via
+         * BranchOverlayContext above. Portals to document.body itself (see
+         * branch-overlay.tsx's own module doc) — its position in this tree is
+         * irrelevant to where it paints. `key={openEgo}` matches that
+         * component's own documented contract for a caller that can swap
+         * `rootId` on an already-mounted instance (not reachable through this
+         * stage's hover/tap UI today — the overlay's own full-viewport
+         * backdrop blocks pointer events to every other chip while it's open —
+         * kept anyway as cheap, correct insurance). */}
+        {!handedOff && openEgo && (
+          <BranchOverlay
+            key={openEgo}
+            rootId={openEgo}
+            quotes={quotes}
+            locale={locale}
+            onClose={closeBranch}
+            onDeepLink={handleDeepLink}
+          />
+        )}
+      </div>
+    </BranchOverlayContext.Provider>
   );
 }
