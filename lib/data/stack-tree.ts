@@ -73,10 +73,11 @@ const SRC_SPEC = 'docs/superpowers/specs/2026-07-18-ai-server-stack-multi-axis-t
 // Per-node base confidence tier — the single source of truth `edgeTo()` reads
 // from, so every edge that targets a node (containment/subsystem/stage) can
 // never drift from that node's own verification tier. Derived from the
-// nav-map's per-line `[✓]`/`[s]`/`[?]` tag, downgraded to `sourced` where the
-// doc itself flags the *specific supplier* attribution uncertain even though
-// the structural fact is `[✓]` (rack.copper / rack.rails' "★…／…[?]" asides
-// name a plausible TW company without confirming it — see nav-map).
+// nav-map's per-line `[✓]`/`[s]`/`[?]` tag; rack.copper's line carries an
+// explicit `[✓]` on the *structure* with only the trailing "★…／…[?]" aside
+// (a plausible TW company name, unconfirmed) flagged uncertain — treated as
+// verified. rack.rails' line has no `[✓]` at all (see NODE_TIER below), so
+// it is NOT part of that pattern and stays at `sourced`.
 const NODE_TIER: Record<string, Confidence> = {
   // verified — rack → tray → package → datapath spine (earlier verified docs)
   dc: 'verified',
@@ -99,13 +100,21 @@ const NODE_TIER: Record<string, Confidence> = {
   'net.scaleout': 'verified',
   'power.chain': 'verified',
   'heat.chain': 'verified',
-  // rack.cooling / rack.copper / rack.rails: nav-map tags the manifold/cable/
-  // rail *structure* [✓], and the named companies (avc/auras/kaori/fositek,
-  // bizlink, kingslide/nanjuen) already carry confirmed `rel` edges to
-  // nvidia/wiwynn/quanta elsewhere in supply-chain.ts — treated as verified.
+  // rack.cooling / rack.copper: nav-map tags the manifold/cable *structure*
+  // [✓], and the named companies (avc/auras/kaori/fositek, bizlink) already
+  // carry confirmed `rel` edges to nvidia/wiwynn/quanta elsewhere in
+  // supply-chain.ts — treated as verified.
   'rack.cooling': 'verified',
   'rack.copper': 'verified',
-  'rack.rails': 'verified',
+  // rack.rails: nav-map line 40 ('滑軌/機構（★川湖/勤誠 [?]）') carries ONLY
+  // [?] — no [✓] appears on this line at all, unlike its rack.cooling/
+  // rack.copper/rack.powershelf/etc. siblings — so the structural fact
+  // itself, not just the supplier attribution, is unconfirmed. `sourced`
+  // per the Task 1 mapping rule ([✓]→verified / [s]→sourced / [?]→gap),
+  // rounded up from gap since a rail/chassis subsystem existing on the rack
+  // is a reasonable structural inference even though the doc itself never
+  // marks it confirmed.
+  'rack.rails': 'sourced',
 
   // sourced — the 2026-07-18 upstream/substrate expansion (nav-map [s]) and
   // the optics/CPO branch (nav-map [s]); never verified per spec §6.
