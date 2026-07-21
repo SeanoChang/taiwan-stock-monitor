@@ -532,12 +532,16 @@ export function createScene(opts: SceneOptions): SceneApi {
   function resize() {
     const w = container.clientWidth || 1,
       h = container.clientHeight || 1;
+    // Plan 007 Part D: re-apply the clamped DPR every resize so a device-pixel-
+    // ratio change after mount (dragging between a retina and non-retina
+    // monitor, or a browser-zoom change) stays crisp instead of blurring until
+    // remount. Same min(dpr,2) cap the renderer used at init (line 92).
+    const pr = Math.min(window.devicePixelRatio || 1, 2);
+    renderer.setPixelRatio(pr);
     renderer.setSize(w, h);
     camera.aspect = w / h;
     camera.updateProjectionMatrix();
-    // Size to the container, same as the renderer above (EffectComposer's
-    // setSize scales by the pixel ratio set at construction internally, same
-    // clamped min(dpr,2) the renderer itself uses).
+    composer?.setPixelRatio(pr);
     composer?.setSize(w, h);
   }
   const ro = new ResizeObserver(resize);
