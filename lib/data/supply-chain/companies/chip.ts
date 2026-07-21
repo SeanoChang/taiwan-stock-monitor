@@ -340,7 +340,10 @@ export const CHIP_COMPANIES: SCCompany[] = [
     ticker: '6138',
     exch: 'TPEx',
     role: l('Power ICs & fan-motor drivers', '電源 IC 與風扇馬達驅動'),
-    rel: [{ to: 'avc', label: l('fan driver ICs', '風扇驅動 IC') }],
+    rel: [
+      { to: 'avc', label: l('fan driver ICs', '風扇驅動 IC') },
+      { to: 'nvidia', label: l('DrMOS on GPU boards', 'GPU 板 DrMOS') },
+    ],
   },
   {
     id: 'upi6719',
