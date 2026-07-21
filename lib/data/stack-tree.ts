@@ -77,6 +77,12 @@ const SRC_SPEC = 'docs/superpowers/specs/2026-07-18-ai-server-stack-multi-axis-t
 const SRC_GPU_HBM =
   'docs/superpowers/ai-server-stack/research-verified-gpu-hbm-packaging-interconnect.md';
 const SRC_RACK_POWER = 'docs/superpowers/ai-server-stack/research-verified-rack-power-cooling.md';
+// Plan 007 (latest-gen modernization): Rubin generation, GPU microarchitecture
+// and the full board-silicon complement all cite the latest-gen research run.
+// Tier `[s] sourced` (each claim URL-backed, not yet adversarially re-voted) —
+// so every node this constant sources is `sourced`/`gap`, never `verified`.
+const SRC_LATEST =
+  'docs/superpowers/ai-server-stack/research-verified-latest-gen-gpu-internals-chips.md';
 
 // ---------------------------------------------------------------------------
 // Per-node base confidence tier — the single source of truth `edgeTo()` reads
@@ -105,6 +111,18 @@ const NODE_TIER: Record<string, Confidence> = {
   'gpu.cowos': 'verified',
   'gpu.internal.sm': 'verified',
   'gpu.internal.memctrl': 'verified',
+  // sourced — GB300 on-die microarchitecture (Plan 007; latest-gen research
+  // `[s]`). NOT verified: it is not part of the original verified spine, per
+  // the file-header honesty carve-out. Existing gpu.internal.sm/memctrl stay
+  // verified (datapath spine). Rubin per-SM internals are `gap` (Task 2).
+  'gpu.internal.gpc': 'sourced',
+  'gpu.internal.tpc': 'sourced',
+  'gpu.internal.sm.warp': 'sourced',
+  'gpu.internal.sm.regfile': 'sourced',
+  'gpu.internal.sm.l1': 'sourced',
+  'gpu.internal.sm.tensor': 'sourced',
+  'gpu.internal.sm.tmem': 'sourced',
+  'gpu.internal.l2': 'sourced',
   'net.scaleup': 'verified',
   'net.scaleout': 'verified',
   'power.chain': 'verified',
@@ -435,7 +453,8 @@ const CONTAINMENT_NODES: StackNode[] = [
     stageId: 'chip',
     specs: [spec('dual-reticle, 208B transistors, TSMC 4NP', 'verified')],
     edges: [
-      edgeTo('gpu.internal.sm', 'containment', SRC_NAVMAP),
+      edgeTo('gpu.internal.gpc', 'containment', SRC_LATEST),
+      edgeTo('gpu.internal.l2', 'containment', SRC_LATEST),
       edgeTo('gpu.internal.memctrl', 'containment', SRC_NAVMAP),
       edgeTo('upstream', 'containment', SRC_NAVMAP),
     ],
@@ -573,21 +592,50 @@ const CONTAINMENT_NODES: StackNode[] = [
     edges: [],
   },
   {
+    id: 'gpu.internal.gpc',
+    name: l('GPC ×8', 'GPC ×8'),
+    blurb: l(
+      '8 Graphics Processing Clusters (4 per die) partition the GB300 die-pair.',
+      '8 個圖形處理叢集（每晶粒 4 個），劃分 GB300 雙晶粒。',
+    ),
+    categoryId: 'anchorcat',
+    companyIds: ['nvidia'],
+    stageId: 'anchor',
+    specs: [spec('8 GPC (4/die)', 'sourced', { sourceUrl: SRC_LATEST })],
+    edges: [edgeTo('gpu.internal.tpc', 'containment', SRC_LATEST)],
+  },
+  {
+    id: 'gpu.internal.tpc',
+    name: l('TPC ×10/GPC', 'TPC ×10/GPC'),
+    blurb: l(
+      '10 Texture Processing Clusters per GPC, 2 SM each → 160 SM (GB300 full; B200 = 148 floorswept).',
+      '每 GPC 10 個 TPC，各含 2 個 SM → 共 160 個 SM（全 GB300；B200 屏蔽為 148）。',
+    ),
+    categoryId: 'anchorcat',
+    companyIds: ['nvidia'],
+    stageId: 'anchor',
+    specs: [spec('10 TPC/GPC × 2 SM = 160 SM', 'sourced', { sourceUrl: SRC_LATEST })],
+    edges: [edgeTo('gpu.internal.sm', 'containment', SRC_LATEST)],
+  },
+  {
     id: 'gpu.internal.sm',
     name: l('Streaming Multiprocessors', 'SM'),
     blurb: l(
-      '×160 SMs (128 CUDA + 4 Tensor + 256KB TMEM each) = 20,480 CUDA cores.',
-      '160 個 SM（各 128 CUDA + 4 Tensor + 256KB TMEM）＝共 20,480 個 CUDA 核心。',
+      '×160 SMs — each: 128 CUDA (FP32/INT32)+FP64, 4 sub-partitions, 64 warps max, 4 Tensor Cores, 256KB TMEM = 20,480 CUDA cores total.',
+      '160 個 SM — 每個：128 CUDA（FP32/INT32）+FP64、4 子分割、最多 64 warp、4 個 Tensor Core、256KB TMEM ＝共 20,480 個 CUDA 核心。',
     ),
     categoryId: 'anchorcat',
     companyIds: ['nvidia'],
     stageId: 'anchor',
     specs: [spec('160 SM × (128 CUDA + 4 Tensor + 256KB TMEM) = 20,480 CUDA', 'verified')],
-    // flow:data hop 1/6 — SM feeds HBM through the memory controller (see
-    // `gpu.internal.memctrl`'s own already-seeded spec for the same 8TB/s
-    // figure; the flow view collapses SM→memctrl→HBM to the one hop the
-    // design spec's §4 table names, "GPU SM → HBM").
+    // Containment children: the on-SM blocks (Plan 007). LSU/SFU exact counts
+    // are unpublished (`gap`) so no node is fabricated for them.
+    // flow:data hop 1/6 (unchanged) — SM feeds HBM through the memory controller.
     edges: [
+      edgeTo('gpu.internal.sm.warp', 'containment', SRC_LATEST),
+      edgeTo('gpu.internal.sm.regfile', 'containment', SRC_LATEST),
+      edgeTo('gpu.internal.sm.l1', 'containment', SRC_LATEST),
+      edgeTo('gpu.internal.sm.tensor', 'containment', SRC_LATEST),
       edgeTo('gpu.hbm', 'flow:data', SRC_GPU_HBM, {
         value: 8,
         unit: 'TB/s',
@@ -606,6 +654,84 @@ const CONTAINMENT_NODES: StackNode[] = [
     companyIds: ['nvidia'],
     stageId: 'anchor',
     specs: [spec('16×512-bit (8,192-bit total) ↔ HBM 8TB/s', 'verified')],
+    edges: [],
+  },
+  {
+    id: 'gpu.internal.sm.warp',
+    name: l('Warp Schedulers ×4', 'Warp 排程器 ×4'),
+    blurb: l(
+      '1 warp scheduler + dispatch per sub-partition (4/SM); up to 64 warps in flight.',
+      '每子分割 1 個 warp 排程器＋派發（每 SM 4 個）；最多 64 個 warp 同時執行。',
+    ),
+    categoryId: 'anchorcat',
+    companyIds: ['nvidia'],
+    stageId: 'anchor',
+    specs: [spec('4 sub-partitions × (1 sched + dispatch); 64 warps max', 'sourced', { sourceUrl: SRC_LATEST })],
+    edges: [],
+  },
+  {
+    id: 'gpu.internal.sm.regfile',
+    name: l('Register File', '暫存器檔案'),
+    blurb: l(
+      '256 KB/SM register file (64K × 32-bit; 64KB per sub-partition).',
+      '每 SM 256 KB 暫存器檔案（64K × 32-bit；每子分割 64KB）。',
+    ),
+    categoryId: 'anchorcat',
+    companyIds: ['nvidia'],
+    stageId: 'anchor',
+    specs: [spec('256 KB/SM (64K × 32-bit)', 'sourced', { sourceUrl: SRC_LATEST })],
+    edges: [],
+  },
+  {
+    id: 'gpu.internal.sm.l1',
+    name: l('L1 / Shared Memory', 'L1／共享記憶體'),
+    blurb: l(
+      '256 KB/SM unified L1 + shared (shared carve-out ≤228 KB); L1 ~39-cycle.',
+      '每 SM 256 KB 統一 L1＋共享（共享配置 ≤228 KB）；L1 約 39 週期。',
+    ),
+    categoryId: 'anchorcat',
+    companyIds: ['nvidia'],
+    stageId: 'anchor',
+    specs: [spec('256 KB/SM unified (≤228 KB smem)', 'sourced', { sourceUrl: SRC_LATEST })],
+    edges: [],
+  },
+  {
+    id: 'gpu.internal.sm.tensor',
+    name: l('5th-gen Tensor Cores ×4', '第五代 Tensor Core ×4'),
+    blurb: l(
+      '4 Tensor Cores/SM (640 total): NVFP4/MXFP4/FP6/FP8/BF16/TF32/FP64. tcgen05 MMA operands live in shared mem + TMEM; MMA.2SM spans a CTA pair across 2 SMs.',
+      '每 SM 4 個 Tensor Core（共 640 個）：NVFP4/MXFP4/FP6/FP8/BF16/TF32/FP64。tcgen05 MMA 運算元置於共享記憶體＋TMEM；MMA.2SM 跨 2 個 SM 的 CTA 對。',
+    ),
+    categoryId: 'anchorcat',
+    companyIds: ['nvidia'],
+    stageId: 'anchor',
+    specs: [spec('4 Tensor/SM (640 total); NVFP4 → FP64', 'sourced', { sourceUrl: SRC_LATEST })],
+    edges: [edgeTo('gpu.internal.sm.tmem', 'containment', SRC_LATEST)],
+  },
+  {
+    id: 'gpu.internal.sm.tmem',
+    name: l('Tensor Memory (TMEM)', 'Tensor 記憶體（TMEM）'),
+    blurb: l(
+      '256 KB/SM tensor memory (128 lanes × 512 × 4B; 16 TB/s read / 8 TB/s write) — new in Blackwell.',
+      '每 SM 256 KB tensor 記憶體（128 lane × 512 × 4B；讀 16 TB/s／寫 8 TB/s）— Blackwell 新增。',
+    ),
+    categoryId: 'anchorcat',
+    companyIds: ['nvidia'],
+    stageId: 'anchor',
+    specs: [spec('256 KB/SM; 16/8 TB/s R/W', 'sourced', { sourceUrl: SRC_LATEST })],
+    edges: [],
+  },
+  {
+    id: 'gpu.internal.l2',
+    name: l('L2 Cache', 'L2 快取'),
+    blurb: l(
+      '~126 MB/GPU L2, 4 partitions (2 per die), ~150 ns latency.',
+      '每 GPU 約 126 MB L2，4 個分割（每晶粒 2 個），延遲約 150 ns。',
+    ),
+    categoryId: 'anchorcat',
+    companyIds: ['nvidia'],
+    stageId: 'anchor',
+    specs: [spec('~126 MB; 4 partitions; ~150 ns', 'sourced', { sourceUrl: SRC_LATEST })],
     edges: [],
   },
   {
