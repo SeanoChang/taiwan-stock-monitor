@@ -27,11 +27,11 @@ total compute power.
 
 ## CPO products (announced specs)
 
-| Switch | Ports | Capacity | Ships |
-|---|---|---|---|
-| Quantum-X Photonics (InfiniBand) | 144× 800G | 115 Tb/s (+SHARP v4 14.4TF) | early 2026, liquid-cooled |
-| Spectrum-X Photonics SN6810 (Ethernet) | 128× 800G | 102.4 Tb/s | H2 2026 |
-| Spectrum-X Photonics SN6800 (Ethernet) | 512× 800G | 409.6 Tb/s | H2 2026 |
+| Switch                                 | Ports     | Capacity                    | Ships                     |
+| -------------------------------------- | --------- | --------------------------- | ------------------------- |
+| Quantum-X Photonics (InfiniBand)       | 144× 800G | 115 Tb/s (+SHARP v4 14.4TF) | early 2026, liquid-cooled |
+| Spectrum-X Photonics SN6810 (Ethernet) | 128× 800G | 102.4 Tb/s                  | H2 2026                   |
+| Spectrum-X Photonics SN6800 (Ethernet) | 512× 800G | 409.6 Tb/s                  | H2 2026                   |
 
 Competing CPO line: Broadcom Bailly/Davisson (Tomahawk-based) [to verify].
 Architecture: TSMC-fabbed silicon-photonics engine (micro-ring modulators),

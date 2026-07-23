@@ -22,11 +22,3 @@ export function fmtChange(chg: number, pct: number): string {
   const sign = chg > 0 ? '+' : '';
   return `${sign}${chg.toFixed(2)} (${sign}${pct.toFixed(2)}%)`;
 }
-
-export function fmtPct(pct: number): string {
-  return `${pct > 0 ? '+' : ''}${pct.toFixed(2)}%`;
-}
-
-export function fmtSigned(v: number): string {
-  return `${v > 0 ? '+' : ''}${v.toFixed(2)}`;
-}

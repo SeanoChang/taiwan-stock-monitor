@@ -23,10 +23,9 @@ export default async function SupplyChainPage({ searchParams }: PageProps) {
   const locale = await getLocale();
   const { focus, group } = await searchParams;
   const validFocus = focus && COMPANY_MAP[focus] ? focus : undefined;
-  // deep link: /supply-chain?group=<GROUP_LABELS index> — the explorer's
-  // <TierRibbon> tile clicks (Plan 006 Phase E, Task 4) route here; validate
-  // against GROUP_LABELS' own length rather than trusting the raw string,
-  // the same defensive pattern `validFocus` above already uses for `focus`.
+  // deep link: /supply-chain?group=<GROUP_LABELS index> — validate against
+  // GROUP_LABELS' own length rather than trusting the raw string, the same
+  // defensive pattern `validFocus` above already uses for `focus`.
   const groupNum = group === undefined ? NaN : Number(group);
   const validGroupFilter =
     Number.isInteger(groupNum) && groupNum >= 0 && groupNum < GROUP_LABELS.length

@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GPU Architecture &amp; AI Server Stack — NVIDIA Blackwell Deep Dive</title>
+<style>
+  :root{
+    --bg:#0a0e16; --panel:#111726; --panel2:#0d1320; --line:#223049;
+    --ink:#e8edf6; --dim:#9aa7bd; --faint:#5f6d85;
+    --nv:#76b900; --tensor:#ffb84d; --mem:#4dc3ff; --net:#c084fc;
+    --cpu:#ff7a7a; --sw:#5eead4; --pwr:#f472b6;
+    --mono:ui-monospace,'SF Mono','Cascadia Code',Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--ink);font:15px/1.55 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;padding-bottom:80px}
+  .wrap{max-width:1180px;margin:0 auto;padding:0 24px}
+
+  /* ---------- header / nav ---------- */
+  header{padding:48px 0 28px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,#0d1524 0%,var(--bg) 100%)}
+  h1{font-size:30px;font-weight:800;letter-spacing:-.5px}
+  h1 .nv{color:var(--nv)}
+  .sub{color:var(--dim);margin-top:8px;max-width:820px}
+  .legend{display:flex;flex-wrap:wrap;gap:14px;margin-top:18px;font-size:12.5px;color:var(--dim)}
+  .legend span{display:inline-flex;align-items:center;gap:6px}
+  .dot{width:10px;height:10px;border-radius:3px;display:inline-block}
+  nav{position:sticky;top:0;z-index:50;background:rgba(10,14,22,.92);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+  nav .wrap{display:flex;gap:4px;overflow-x:auto;padding-top:10px;padding-bottom:10px}
+  nav a{color:var(--dim);text-decoration:none;font-size:13px;font-weight:600;padding:6px 12px;border-radius:8px;white-space:nowrap}
+  nav a:hover{color:var(--ink);background:var(--panel)}
+
+  /* ---------- generic ---------- */
+  section{padding:44px 0 8px}
+  h2{font-size:22px;font-weight:800;letter-spacing:-.3px;display:flex;align-items:center;gap:10px}
+  h2 .lv{font:700 11px/1 var(--mono);color:var(--bg);padding:5px 8px;border-radius:6px}
+  .desc{color:var(--dim);margin:8px 0 22px;max-width:900px}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px}
+  .cols{display:grid;gap:18px}
+  @media(min-width:900px){.two{grid-template-columns:1fr 1fr}.three{grid-template-columns:1fr 1fr 1fr}}
+  .chip{display:inline-block;font:600 11px/1 var(--mono);color:var(--dim);border:1px solid var(--line);border-radius:99px;padding:4px 9px;margin:2px}
+  .stat{font-family:var(--mono);font-size:12.5px;color:var(--dim)}
+  .stat b{color:var(--ink);font-weight:700}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th{color:var(--faint);text-align:left;font-weight:600;font-size:11.5px;text-transform:uppercase;letter-spacing:.06em;padding:8px 10px;border-bottom:1px solid var(--line)}
+  td{padding:8px 10px;border-bottom:1px solid #1a2336;color:var(--dim)}
+  td:first-child{color:var(--ink);font-weight:600}
+  td .m{font-family:var(--mono);font-size:12px}
+  .note{font-size:12.5px;color:var(--faint);margin-top:12px}
+
+  /* ---------- package / die ---------- */
+  .package{background:var(--panel2);border:1px solid var(--line);border-radius:16px;padding:22px;position:relative}
+  .pkg-title{font:700 12px var(--mono);color:var(--faint);text-transform:uppercase;letter-spacing:.08em;margin-bottom:14px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px}
+  .pkg-grid{display:grid;grid-template-columns:64px 1fr 84px 1fr 64px;gap:10px;align-items:stretch}
+  .hbm-col{display:flex;flex-direction:column;gap:8px;justify-content:center}
+  .hbm{background:linear-gradient(180deg,#0f2a3d,#0c1f2e);border:1px solid #1d4f6e;border-radius:8px;color:var(--mem);font:700 10.5px var(--mono);text-align:center;padding:14px 4px;flex:1;display:flex;flex-direction:column;justify-content:center;gap:2px}
+  .hbm small{color:#3d7ea6;font-weight:600}
+  .die{background:linear-gradient(160deg,#16220f,#101a0b);border:1.5px solid #3d5c14;border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:8px}
+  .die h4{font:800 12px var(--mono);color:var(--nv);letter-spacing:.05em;display:flex;justify-content:space-between}
+  .die h4 small{color:#557a2a;font-weight:600}
+  .sm-grid{display:grid;grid-template-columns:repeat(12,1fr);gap:3px}
+  .sm-cell{aspect-ratio:1/1.35;background:#233a10;border:1px solid #3d5c14;border-radius:2.5px;position:relative}
+  .sm-cell::after{content:'';position:absolute;inset:22% 18% 45% 18%;background:#76b90033;border-radius:1px}
+  .sm-cell.t::before{content:'';position:absolute;inset:55% 18% 18% 18%;background:#ffb84d40;border-radius:1px}
+  .die .l2{background:#1b2a10;border:1px dashed #4a6b1e;border-radius:6px;text-align:center;font:700 10.5px var(--mono);color:#a3d95c;padding:7px 4px}
+  .die .ctrl{display:flex;gap:6px}
+  .die .ctrl div{flex:1;background:#141d0d;border:1px solid #33490f;border-radius:5px;text-align:center;font:600 9.5px var(--mono);color:#7e9b52;padding:5px 2px}
+  .nvhbi{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px}
+  .nvhbi .bridge{width:100%;flex:1;max-height:220px;background:repeating-linear-gradient(90deg,#76b90022 0 6px,transparent 6px 12px),linear-gradient(180deg,#1c2a12,#141f0c);border:1px solid #4a6b1e;border-radius:8px;display:flex;align-items:center;justify-content:center}
+  .nvhbi .bridge span{writing-mode:vertical-rl;font:800 11px var(--mono);color:var(--nv);letter-spacing:.1em}
+  .nvhbi small{font:700 10px var(--mono);color:#7e9b52;text-align:center}
+  .pkg-io{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-top:14px}
+  .io{border-radius:10px;padding:10px 12px;font-size:12.5px;border:1px solid var(--line);background:var(--panel)}
+  .io b{display:block;font:700 12px var(--mono);margin-bottom:2px}
+  .io span{color:var(--dim);font-size:12px}
+  .io.nv b{color:var(--nv)} .io.mem b{color:var(--mem)} .io.net b{color:var(--net)} .io.cpu b{color:var(--cpu)}
+
+  /* ---------- SM microarchitecture ---------- */
+  .sm-box{background:var(--panel2);border:1px solid #3d5c14;border-radius:14px;padding:16px}
+  .sm-box h3{font:800 13px var(--mono);color:var(--nv);margin-bottom:12px;letter-spacing:.05em}
+  .sm-top{display:grid;gap:8px}
+  .bar{background:#18230f;border:1px solid #33490f;border-radius:7px;text-align:center;font:700 11px var(--mono);color:#a3d95c;padding:7px}
+  .blocks{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin:8px 0}
+  @media(min-width:700px){.blocks{grid-template-columns:repeat(4,1fr)}}
+  .pblock{background:#131c0c;border:1px solid #33490f;border-radius:9px;padding:8px;display:flex;flex-direction:column;gap:5px}
+  .pblock div{border-radius:5px;text-align:center;font:600 9.5px var(--mono);padding:5px 2px;border:1px solid transparent}
+  .pb-sched{background:#1d290f;color:#8fb35b;border-color:#33490f!important}
+  .pb-reg{background:#101a20;color:#6fa8c9;border-color:#1d3a4d!important}
+  .pb-cuda{background:#233a10;color:#a3d95c;border-color:#3d5c14!important}
+  .pb-tensor{background:#332107;color:var(--tensor);border-color:#6b4a14!important;padding:9px 2px!important;font-weight:800!important}
+  .pb-misc{background:#171d29;color:#8b98ad;border-color:#28354d!important}
+  .sm-notes{margin-top:14px;display:grid;gap:10px}
+  @media(min-width:700px){.sm-notes{grid-template-columns:1fr 1fr}}
+  .kv{font-size:13px;color:var(--dim)}
+  .kv b{color:var(--ink)}
+  .kv .tag{font:700 10.5px var(--mono);padding:2px 7px;border-radius:5px;margin-right:6px}
+
+  /* ---------- memory hierarchy ---------- */
+  .pyramid{display:flex;flex-direction:column;gap:7px}
+  .tier{display:grid;grid-template-columns:minmax(140px,220px) 1fr minmax(150px,220px);gap:12px;align-items:center;border:1px solid var(--line);border-radius:10px;padding:10px 14px;background:var(--panel2)}
+  .tier .n{font:800 12.5px var(--mono)}
+  .tier .d{color:var(--dim);font-size:12.5px}
+  .tier .b{font:700 12px var(--mono);text-align:right;color:var(--mem)}
+  @media(max-width:700px){.tier{grid-template-columns:1fr}.tier .b{text-align:left}}
+
+  /* ---------- decomposition levels ---------- */
+  .lvhead{display:flex;align-items:center;gap:12px;margin:34px 0 6px}
+  .lvhead .badge{font:800 11px var(--mono);color:#08110a;border-radius:7px;padding:6px 9px;white-space:nowrap}
+  .lvhead h3{font-size:18px;font-weight:800}
+  .lvhead .x{margin-left:auto;font:700 12px var(--mono);color:var(--faint);white-space:nowrap}
+  .conn{display:flex;justify-content:center;color:var(--faint);font:700 16px var(--mono);padding:6px 0}
+  .tray{display:grid;gap:8px}
+  .tray-row{display:grid;gap:8px;grid-template-columns:repeat(auto-fit,minmax(120px,1fr))}
+  .unit{border-radius:9px;padding:9px 10px;font:600 11px var(--mono);text-align:center;border:1px solid var(--line);background:var(--panel2);color:var(--dim)}
+  .unit b{display:block;font-size:11.5px;margin-bottom:2px;color:var(--ink)}
+  .unit.gpu{border-color:#3d5c14;background:#131c0c} .unit.gpu b{color:var(--nv)}
+  .unit.cpu{border-color:#5c2a2a;background:#1d1010} .unit.cpu b{color:var(--cpu)}
+  .unit.mem{border-color:#1d4f6e;background:#0c1f2e} .unit.mem b{color:var(--mem)}
+  .unit.net{border-color:#4c2a6b;background:#180f26} .unit.net b{color:var(--net)}
+  .unit.pwr{border-color:#6b2a4a;background:#220d18} .unit.pwr b{color:var(--pwr)}
+  .unit.sw{border-color:#1e5c50;background:#0c1f1b} .unit.sw b{color:var(--sw)}
+
+  /* rack elevation */
+  .rack{display:grid;grid-template-columns:1fr;gap:16px}
+  @media(min-width:900px){.rack{grid-template-columns:340px 1fr}}
+  .elev{background:#0b0f18;border:2px solid #2a3854;border-radius:12px;padding:10px;display:flex;flex-direction:column;gap:3px}
+  .ru{border-radius:5px;font:700 9.5px var(--mono);padding:5px 8px;display:flex;justify-content:space-between;align-items:center;border:1px solid transparent}
+  .ru span{opacity:.75;font-weight:600}
+  .ru.ct{background:#131c0c;color:#a3d95c;border-color:#33490f}
+  .ru.sw{background:#180f26;color:#c9a2f5;border-color:#4c2a6b}
+  .ru.pw{background:#220d18;color:#f2a0c6;border-color:#6b2a4a}
+  .ru.mg{background:#171d29;color:#8b98ad;border-color:#28354d}
+
+  /* software stack */
+  .swstack{display:flex;flex-direction:column;gap:8px}
+  .swl{display:grid;grid-template-columns:minmax(150px,230px) 1fr;gap:14px;border:1px solid #1e5c50;border-left-width:4px;border-radius:10px;padding:11px 14px;background:#0c1a17}
+  .swl .n{font:800 12.5px var(--mono);color:var(--sw)}
+  .swl .n small{display:block;color:#3f8577;font-weight:600;margin-top:2px}
+  .swl .items{display:flex;flex-wrap:wrap;gap:5px;align-items:center}
+  .swl .items i{font-style:normal;font:600 11.5px var(--mono);background:#12241f;border:1px solid #1e5c50;color:#a9e8db;border-radius:6px;padding:4px 8px}
+  @media(max-width:700px){.swl{grid-template-columns:1fr}}
+
+  footer{margin-top:56px;border-top:1px solid var(--line);padding-top:20px;color:var(--faint);font-size:12.5px}
+  footer a{color:var(--dim)}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <h1>GPU Architecture <span style="color:var(--faint)">&amp;</span> AI Server Stack <span class="nv">Decomposition</span></h1>
+    <p class="sub">A full-stack teardown centered on NVIDIA Blackwell — from the streaming multiprocessor inside a B200 die, up through the GB200 superchip, compute tray, NVL72 rack, cluster fabric, and datacenter, plus the software stack that runs on top of it all.</p>
+    <div class="legend">
+      <span><i class="dot" style="background:var(--nv)"></i>GPU / compute silicon</span>
+      <span><i class="dot" style="background:var(--tensor)"></i>Tensor cores</span>
+      <span><i class="dot" style="background:var(--mem)"></i>Memory</span>
+      <span><i class="dot" style="background:var(--cpu)"></i>CPU</span>
+      <span><i class="dot" style="background:var(--net)"></i>Interconnect / network</span>
+      <span><i class="dot" style="background:var(--pwr)"></i>Power / cooling</span>
+      <span><i class="dot" style="background:var(--sw)"></i>Software</span>
+    </div>
+  </div>
+</header>
+
+<nav><div class="wrap">
+  <a href="#die">L0 · Die &amp; Package</a>
+  <a href="#sm">SM Microarchitecture</a>
+  <a href="#memhier">Memory Hierarchy</a>
+  <a href="#superchip">L1 · Superchip</a>
+  <a href="#tray">L2 · Compute Tray</a>
+  <a href="#rack">L3 · NVL72 Rack</a>
+  <a href="#cluster">L4 · Cluster</a>
+  <a href="#dc">L5 · Datacenter</a>
+  <a href="#software">Software Stack</a>
+</div></nav>
+
+<div class="wrap">
+
+<!-- ================= L0 : DIE & PACKAGE ================= -->
+<section id="die">
+  <h2><span class="lv" style="background:var(--nv)">L0</span> Blackwell B200 — Die &amp; Package</h2>
+  <p class="desc">The B200 is a <b>dual-die package</b>: two reticle-limit dies (TSMC 4NP, ~104B transistors each, <b>208B total</b>) fused by the <b>NV-HBI</b> die-to-die interconnect at <b>10&nbsp;TB/s</b>, so software sees one coherent GPU. Eight HBM3e stacks surround the dies for <b>192&nbsp;GB</b> at <b>8&nbsp;TB/s</b>.</p>
+
+  <div class="package">
+    <div class="pkg-title">
+      <span>B200 SXM PACKAGE — TOP VIEW (SCHEMATIC)</span>
+      <span>208B transistors · TSMC 4NP · up to 1,000–1,200 W</span>
+    </div>
+    <div class="pkg-grid">
+      <div class="hbm-col">
+        <div class="hbm">HBM3e<small>24 GB · 8-Hi</small></div>
+        <div class="hbm">HBM3e<small>24 GB · 8-Hi</small></div>
+        <div class="hbm">HBM3e<small>24 GB · 8-Hi</small></div>
+        <div class="hbm">HBM3e<small>24 GB · 8-Hi</small></div>
+      </div>
+      <div class="die">
+        <h4>GPU DIE 0 <small>~104B xtors</small></h4>
+        <div class="ctrl"><div>GigaThread Engine · Scheduler</div><div>NVDEC ×7 / JPEG</div></div>
+        <div class="sm-grid" data-smgrid></div>
+        <div class="l2">L2 CACHE (partitioned, tens of MB)</div>
+        <div class="ctrl"><div>HBM3e MC ×4</div><div>NVLink 5 PHY ×9</div></div>
+      </div>
+      <div class="nvhbi">
+        <small>NV-HBI</small>
+        <div class="bridge"><span>10 TB/s</span></div>
+        <small>die-to-die<br>full coherency</small>
+      </div>
+      <div class="die">
+        <h4>GPU DIE 1 <small>~104B xtors</small></h4>
+        <div class="ctrl"><div>GigaThread Engine · Scheduler</div><div>NVDEC ×7 / JPEG</div></div>
+        <div class="sm-grid" data-smgrid></div>
+        <div class="l2">L2 CACHE (partitioned, tens of MB)</div>
+        <div class="ctrl"><div>HBM3e MC ×4</div><div>NVLink 5 PHY ×9</div></div>
+      </div>
+      <div class="hbm-col">
+        <div class="hbm">HBM3e<small>24 GB · 8-Hi</small></div>
+        <div class="hbm">HBM3e<small>24 GB · 8-Hi</small></div>
+        <div class="hbm">HBM3e<small>24 GB · 8-Hi</small></div>
+        <div class="hbm">HBM3e<small>24 GB · 8-Hi</small></div>
+      </div>
+    </div>
+    <div class="pkg-io">
+      <div class="io mem"><b>HBM3e — 192 GB @ 8 TB/s</b><span>8 stacks · 8192-bit total interface</span></div>
+      <div class="io nv"><b>NVLink 5 — 1.8 TB/s</b><span>18 links × 100 GB/s, to NVSwitch fabric</span></div>
+      <div class="io cpu"><b>NVLink-C2C — 900 GB/s</b><span>coherent link to Grace CPU (GB200)</span></div>
+      <div class="io net"><b>PCIe Gen5 ×16</b><span>host I/O, NIC/DPU attach in HGX systems</span></div>
+    </div>
+    <p class="note">Each small green cell above = one SM (grid is illustrative; NVIDIA does not publish exact per-die SM counts for B200 the way it did for H100's 132 SMs). SMs are grouped into GPCs/TPCs; a crossbar connects all SMs to the partitioned L2 and memory controllers.</p>
+  </div>
+
+  <div class="cols two" style="margin-top:18px">
+    <div class="panel">
+      <h3 style="font-size:15px;margin-bottom:10px">Die-level building blocks</h3>
+      <table>
+        <tr><th>Block</th><th>Role</th></tr>
+        <tr><td>GPC / TPC / SM</td><td>Hierarchical compute clusters; SM is the unit that executes warps</td></tr>
+        <tr><td>L2 cache</td><td>Shared, partitioned victim cache between SMs and HBM controllers</td></tr>
+        <tr><td>GigaThread engine</td><td>Global work distribution: assigns thread blocks (CTAs) to SMs</td></tr>
+        <tr><td>Memory controllers</td><td>Drive the 8×HBM3e stacks (8 TB/s aggregate)</td></tr>
+        <tr><td>NVLink 5 + NV-HBI PHYs</td><td>Off-package (1.8 TB/s) and die-to-die (10 TB/s) links</td></tr>
+        <tr><td>Copy/DMA + Decompression engines</td><td>Async data movement; HW decompression for data loading</td></tr>
+        <tr><td>Confidential-compute / RAS engine</td><td>TEE-I/O secure enclaves; predictive reliability telemetry</td></tr>
+      </table>
+    </div>
+    <div class="panel">
+      <h3 style="font-size:15px;margin-bottom:10px">B200 headline numbers (per GPU)</h3>
+      <table>
+        <tr><th>Metric</th><th>Value</th></tr>
+        <tr><td>FP4 (Tensor)</td><td><span class="m"><b style="color:var(--ink)">~9 PFLOPS</b> dense · 18 PFLOPS sparse</span></td></tr>
+        <tr><td>FP8 (Tensor)</td><td><span class="m">~4.5 PFLOPS dense · 9 sparse</span></td></tr>
+        <tr><td>FP16 / BF16 (Tensor)</td><td><span class="m">~2.25 PFLOPS dense · 4.5 sparse</span></td></tr>
+        <tr><td>TF32 (Tensor)</td><td><span class="m">~1.1 PFLOPS dense</span></td></tr>
+        <tr><td>FP64</td><td><span class="m">~40 TFLOPS</span></td></tr>
+        <tr><td>Memory</td><td><span class="m">192 GB HBM3e · 8 TB/s</span></td></tr>
+        <tr><td>TDP</td><td><span class="m">1,000 W (HGX) · up to 1,200 W (GB200 config)</span></td></tr>
+      </table>
+      <p class="note">Exact TFLOPS vary with clocks/TDP configuration (HGX B200 vs GB200).</p>
+    </div>
+  </div>
+</section>
+
+<!-- ================= SM MICROARCHITECTURE ================= -->
+<section id="sm">
+  <h2><span class="lv" style="background:var(--nv)">L0.1</span> Inside a Streaming Multiprocessor (SM)</h2>
+  <p class="desc">The SM is the GPU's core execution engine. Each SM runs thousands of threads grouped in <b>warps of 32</b>, scheduled across <b>4 processing blocks</b>. Blackwell pairs the classic CUDA-core datapath with <b>5th-gen Tensor Cores</b> and a <b>2nd-gen Transformer Engine</b> that adds FP4/FP6 micro-tensor-scaled formats.</p>
+
+  <div class="sm-box">
+    <h3>BLACKWELL SM — BLOCK DIAGRAM</h3>
+    <div class="sm-top">
+      <div class="bar">INSTRUCTION CACHE (L1 I-cache, shared) → per-block L0 I-cache</div>
+      <div class="blocks">
+        <div class="pblock">
+          <div class="pb-sched">WARP SCHEDULER<br>(32 thread/clk)</div>
+          <div class="pb-sched">DISPATCH UNIT</div>
+          <div class="pb-reg">REGISTER FILE<br>16,384 × 32-bit</div>
+          <div class="pb-cuda">FP32 / INT32<br>CUDA CORES ×32</div>
+          <div class="pb-cuda">FP64 UNITS</div>
+          <div class="pb-tensor">TENSOR CORE<br>5th GEN</div>
+          <div class="pb-misc">LD/ST ×8 · SFU ×4</div>
+        </div>
+        <div class="pblock">
+          <div class="pb-sched">WARP SCHEDULER<br>(32 thread/clk)</div>
+          <div class="pb-sched">DISPATCH UNIT</div>
+          <div class="pb-reg">REGISTER FILE<br>16,384 × 32-bit</div>
+          <div class="pb-cuda">FP32 / INT32<br>CUDA CORES ×32</div>
+          <div class="pb-cuda">FP64 UNITS</div>
+          <div class="pb-tensor">TENSOR CORE<br>5th GEN</div>
+          <div class="pb-misc">LD/ST ×8 · SFU ×4</div>
+        </div>
+        <div class="pblock">
+          <div class="pb-sched">WARP SCHEDULER<br>(32 thread/clk)</div>
+          <div class="pb-sched">DISPATCH UNIT</div>
+          <div class="pb-reg">REGISTER FILE<br>16,384 × 32-bit</div>
+          <div class="pb-cuda">FP32 / INT32<br>CUDA CORES ×32</div>
+          <div class="pb-cuda">FP64 UNITS</div>
+          <div class="pb-tensor">TENSOR CORE<br>5th GEN</div>
+          <div class="pb-misc">LD/ST ×8 · SFU ×4</div>
+        </div>
+        <div class="pblock">
+          <div class="pb-sched">WARP SCHEDULER<br>(32 thread/clk)</div>
+          <div class="pb-sched">DISPATCH UNIT</div>
+          <div class="pb-reg">REGISTER FILE<br>16,384 × 32-bit</div>
+          <div class="pb-cuda">FP32 / INT32<br>CUDA CORES ×32</div>
+          <div class="pb-cuda">FP64 UNITS</div>
+          <div class="pb-tensor">TENSOR CORE<br>5th GEN</div>
+          <div class="pb-misc">LD/ST ×8 · SFU ×4</div>
+        </div>
+      </div>
+      <div class="bar">UNIFIED L1 DATA CACHE / SHARED MEMORY (~256 KB, configurable split) · TEX UNITS</div>
+      <div class="bar">TMA — TENSOR MEMORY ACCELERATOR (async bulk tensor copies, global ↔ shared)</div>
+    </div>
+
+    <div class="sm-notes">
+      <div class="kv"><span class="tag" style="background:#332107;color:var(--tensor)">TENSOR</span><b>5th-gen Tensor Cores</b> execute matrix-multiply-accumulate on whole warpgroups. New in Blackwell: <b>FP4 &amp; FP6</b> with micro-tensor scaling (per-32-element scale factors) — the 2nd-gen Transformer Engine picks precision per layer dynamically, doubling throughput and model capacity vs FP8.</div>
+      <div class="kv"><span class="tag" style="background:#1d290f;color:#a3d95c">EXEC</span><b>Execution model:</b> kernel → grid → thread blocks (CTAs) → warps of 32 threads. GigaThread engine places CTAs on SMs; warp schedulers hide memory latency by switching among resident warps every cycle. Thread-block clusters let CTAs on nearby SMs share distributed shared memory.</div>
+      <div class="kv"><span class="tag" style="background:#101a20;color:#6fa8c9">DATA</span><b>Data path:</b> TMA streams tiles from HBM → shared memory asynchronously; tensor cores consume tiles from shared memory/registers, so compute and data movement overlap (warp-specialized producer/consumer kernels — the pattern behind FlashAttention-style kernels).</div>
+      <div class="kv"><span class="tag" style="background:#171d29;color:#8b98ad">MISC</span><b>Also in each SM:</b> special-function units (transcendentals), load/store units, and per-SM instruction caches. FP64 throughput is a small fraction of AI-format throughput — Blackwell is tuned for low-precision AI math.</div>
+    </div>
+  </div>
+
+  <div class="panel" style="margin-top:18px">
+    <h3 style="font-size:15px;margin-bottom:10px">Precision ladder — why FP4 matters</h3>
+    <table>
+      <tr><th>Format</th><th>Bits</th><th>Typical use</th><th>Relative Tensor throughput</th></tr>
+      <tr><td>FP64</td><td class="m">64</td><td>HPC / scientific</td><td class="m">~1×</td></tr>
+      <tr><td>TF32</td><td class="m">19</td><td>Drop-in FP32 training</td><td class="m">~28×</td></tr>
+      <tr><td>FP16 / BF16</td><td class="m">16</td><td>Mixed-precision training</td><td class="m">~56×</td></tr>
+      <tr><td>FP8 (E4M3/E5M2)</td><td class="m">8</td><td>Training + inference (Transformer Engine)</td><td class="m">~112×</td></tr>
+      <tr><td>FP6 / FP4</td><td class="m">6 / 4</td><td>Inference (Blackwell micro-tensor scaling)</td><td class="m">~112× / ~225×</td></tr>
+    </table>
+  </div>
+</section>
+
+<!-- ================= MEMORY HIERARCHY ================= -->
+<section id="memhier">
+  <h2><span class="lv" style="background:var(--mem)">L0.2</span> Memory Hierarchy — registers to remote GPUs</h2>
+  <p class="desc">AI performance is mostly a memory game: every level trades capacity for bandwidth and latency. Keeping tensor cores fed means staging data down this ladder efficiently.</p>
+  <div class="pyramid">
+    <div class="tier" style="border-color:#3d5c14"><div class="n" style="color:var(--nv)">Registers</div><div class="d">Per-thread, allocated from the SM register file — operands live here during execution</div><div class="b">~64 KB × 4 blocks / SM · fastest</div></div>
+    <div class="tier" style="border-color:#3d5c14"><div class="n" style="color:var(--nv)">Shared memory / L1</div><div class="d">Per-SM scratchpad (configurable with L1); tile staging for tensor cores via TMA; distributed shared memory across thread-block clusters</div><div class="b">~256 KB / SM · ~20 TB/s-class</div></div>
+    <div class="tier" style="border-color:#4a6b1e"><div class="n" style="color:#a3d95c">L2 cache</div><div class="d">Shared across all SMs on both dies (coherent over NV-HBI); absorbs HBM traffic</div><div class="b">tens of MB · multi-TB/s</div></div>
+    <div class="tier" style="border-color:#1d4f6e"><div class="n" style="color:var(--mem)">HBM3e (local)</div><div class="d">8 stacks on-package; model weights, KV-cache, activations</div><div class="b">192 GB · 8 TB/s</div></div>
+    <div class="tier" style="border-color:#4c2a6b"><div class="n" style="color:var(--net)">Peer GPU HBM via NVLink 5</div><div class="d">Load/store into any of 72 GPUs' memory across the NVL72 fabric — one 13.4 TB "unified" GPU memory pool</div><div class="b">1.8 TB/s per GPU</div></div>
+    <div class="tier" style="border-color:#5c2a2a"><div class="n" style="color:var(--cpu)">Grace LPDDR5X via NVLink-C2C</div><div class="d">CPU memory, cache-coherent with the GPU — offload optimizer state, huge KV-caches</div><div class="b">480 GB / Superchip GPU-addressable · 900 GB/s</div></div>
+    <div class="tier"><div class="n" style="color:var(--dim)">NVMe / network storage</div><div class="d">Checkpoints, datasets — via GPUDirect Storage bypassing the CPU</div><div class="b">TB–PB · GB/s-class</div></div>
+  </div>
+</section>
+
+<!-- ================= L1 : SUPERCHIP ================= -->
+<section id="superchip">
+  <h2><span class="lv" style="background:var(--cpu)">L1</span> GB200 Grace-Blackwell Superchip</h2>
+  <p class="desc">One board: <b>1 Grace CPU + 2 B200 GPUs</b>, joined by coherent NVLink-C2C. The CPU isn't a bottleneck bolted on — it's a 480&nbsp;GB memory extension and data-feeding engine for its two GPUs. (~2.7&nbsp;kW per superchip.)</p>
+  <div class="panel">
+    <div class="tray">
+      <div class="tray-row">
+        <div class="unit gpu" style="grid-column:span 1"><b>B200 GPU</b>192 GB HBM3e · 8 TB/s<br>NVLink 5 → fabric</div>
+        <div class="unit cpu"><b>GRACE CPU</b>72× Arm Neoverse V2<br>480 GB LPDDR5X · ~512 GB/s</div>
+        <div class="unit gpu"><b>B200 GPU</b>192 GB HBM3e · 8 TB/s<br>NVLink 5 → fabric</div>
+      </div>
+      <div class="tray-row">
+        <div class="unit net"><b>NVLink-C2C</b>900 GB/s coherent, CPU ↔ each GPU</div>
+        <div class="unit mem"><b>Unified memory</b>~864 GB fast memory per superchip (HBM + LPDDR)</div>
+        <div class="unit pwr"><b>Power</b>~2,700 W · liquid-cooled cold plates</div>
+      </div>
+    </div>
+    <p class="note">Alternative x86 path: <b>HGX B200</b> — 8× B200 SXM on a baseboard with on-board NVSwitch + 2 x86 CPUs over PCIe Gen5. Same GPU silicon, different node topology.</p>
+  </div>
+</section>
+
+<!-- ================= L2 : COMPUTE TRAY ================= -->
+<section id="tray">
+  <h2><span class="lv" style="background:var(--nv)">L2</span> Compute Tray (MGX, 1U liquid-cooled)</h2>
+  <p class="desc">The serviceable unit of the NVL72: <b>2 GB200 superchips</b> per tray → <b>4 GPUs + 2 CPUs</b>, plus the NICs and DPUs that connect this tray to the scale-out network and storage.</p>
+  <div class="panel">
+    <div class="tray">
+      <div class="tray-row">
+        <div class="unit gpu"><b>GB200 Superchip #1</b>2× B200 + Grace</div>
+        <div class="unit gpu"><b>GB200 Superchip #2</b>2× B200 + Grace</div>
+        <div class="unit net"><b>NVLink connector</b>→ copper cartridge to switch trays</div>
+      </div>
+      <div class="tray-row">
+        <div class="unit net"><b>ConnectX-7/8 ×4</b>400–800 Gb/s per GPU<br>E-W RDMA (rail-optimized)</div>
+        <div class="unit net"><b>BlueField-3 DPU</b>N-S traffic, storage, security, multi-tenancy</div>
+        <div class="unit mem"><b>NVMe SSDs</b>local scratch / cache</div>
+        <div class="unit pwr"><b>Cold plates + manifolds</b>direct liquid cooling loop</div>
+      </div>
+    </div>
+    <div style="margin-top:12px" class="stat">Per tray: <b>~80 PFLOPS FP4</b> · <b>768 GB HBM3e</b> · <b>960 GB LPDDR5X</b> · busbar-fed DC power from rack power shelves</div>
+  </div>
+</section>
+<!-- ================= L3 : RACK ================= -->
+<section id="rack">
+  <h2><span class="lv" style="background:var(--net);color:#0b0716">L3</span> GB200 NVL72 Rack — one giant GPU</h2>
+  <p class="desc">The rack is the new unit of compute: <b>72 GPUs + 36 Grace CPUs</b> in one NVLink domain, so every GPU can read every other GPU's HBM at full NVLink speed. <b>130 TB/s</b> of all-to-all fabric bandwidth, <b>~13.4 TB HBM3e</b> unified, <b>~1.4 exaFLOPS FP4</b>, ~120 kW, fully liquid-cooled, ~1.36 t.</p>
+
+  <div class="rack">
+    <div class="elev">
+      <div class="ru mg">TOP<span>cable management / manifolds</span></div>
+      <div class="ru pw">POWER SHELVES<span>AC → 48V DC busbar</span></div>
+      <div class="ru ct">COMPUTE TRAY ×10<span>4 GPU + 2 CPU each</span></div>
+      <div class="ru ct">▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓<span>trays 1–10</span></div>
+      <div class="ru sw">NVLINK SWITCH TRAY ×9<span>2× NVLink-5 switch chips each</span></div>
+      <div class="ru sw">░░░░░░░░░░░░░░░░░░░░░░░░<span>18 switch ASICs total</span></div>
+      <div class="ru ct">COMPUTE TRAY ×8<span>trays 11–18</span></div>
+      <div class="ru ct">▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓<span>4 GPU + 2 CPU each</span></div>
+      <div class="ru pw">POWER SHELVES<span>redundant</span></div>
+      <div class="ru mg">BOTTOM<span>liquid manifolds → CDU · BMC mgmt</span></div>
+      <div style="text-align:center;font:700 10px var(--mono);color:var(--faint);padding-top:6px">NVLINK SPINE: &gt;5,000 blind-mate copper cables (~2 miles) — no optics inside the rack</div>
+    </div>
+    <div class="panel">
+      <h3 style="font-size:15px;margin-bottom:10px">Rack-level totals</h3>
+      <table>
+        <tr><th>Resource</th><th>Total</th></tr>
+        <tr><td>GPUs / CPUs</td><td class="m">72× B200 · 36× Grace (2,592 Arm cores)</td></tr>
+        <tr><td>FP4 compute</td><td class="m">~720 PFLOPS dense · 1.44 EFLOPS sparse</td></tr>
+        <tr><td>FP8 compute</td><td class="m">~360 PFLOPS dense</td></tr>
+        <tr><td>HBM3e</td><td class="m">~13.4 TB @ 576 TB/s aggregate</td></tr>
+        <tr><td>Fast memory (HBM+LPDDR)</td><td class="m">~30 TB unified</td></tr>
+        <tr><td>NVLink fabric</td><td class="m">130 TB/s all-to-all · 1 hop GPU↔GPU via NVSwitch</td></tr>
+        <tr><td>Power / cooling</td><td class="m">~120 kW · direct liquid cooling (ORv3-based 48U MGX rack)</td></tr>
+      </table>
+      <p class="note">Each NVLink-5 switch ASIC provides 7.2 TB/s across 72 ports and runs in-network compute (SHARP v4) — reductions like all-reduce execute inside the switches, off-loading the GPUs. Because the whole rack is one NVLink domain, tensor/expert-parallel groups up to 72-way stay off the (much slower) InfiniBand/Ethernet network — the key to trillion-parameter inference throughput.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ================= L4 : CLUSTER ================= -->
+<section id="cluster">
+  <h2><span class="lv" style="background:var(--net);color:#0b0716">L4</span> Cluster / Pod — scale-out fabric</h2>
+  <p class="desc">Beyond one rack, GPUs talk over the <b>scale-out network</b>: RDMA fabrics in a rail-optimized fat-tree. A DGX SuperPOD building block is <b>8× NVL72 racks = 576 GPUs</b>; hyperscale clusters tile this to 100k+ GPUs.</p>
+  <div class="cols two">
+    <div class="panel">
+      <h3 style="font-size:15px;margin-bottom:10px">Three networks, three jobs</h3>
+      <table>
+        <tr><th>Network</th><th>Purpose</th><th>Technology</th></tr>
+        <tr><td>Scale-up (E-W, intra-rack)</td><td>Tensor / expert parallelism</td><td class="m">NVLink 5 + NVSwitch · 1.8 TB/s per GPU</td></tr>
+        <tr><td>Scale-out (E-W, inter-rack)</td><td>Data / pipeline parallelism, all-reduce</td><td class="m">Quantum-X800 InfiniBand or Spectrum-X Ethernet · 400–800 Gb/s per GPU, rail-optimized, adaptive routing</td></tr>
+        <tr><td>North-South + storage</td><td>Ingest, checkpoints, users, control</td><td class="m">BlueField-3 DPUs · Ethernet · GPUDirect Storage → parallel FS (Lustre/GPFS/object)</td></tr>
+      </table>
+    </div>
+    <div class="panel">
+      <h3 style="font-size:15px;margin-bottom:10px">Pod anatomy</h3>
+      <div class="tray">
+        <div class="tray-row">
+          <div class="unit net"><b>Spine/leaf switches</b>fat-tree, one "rail" per GPU index</div>
+          <div class="unit gpu"><b>NVL72 racks ×8</b>576 GPUs / scalable unit</div>
+          <div class="unit pwr"><b>CDU racks</b>liquid loop heat exchange</div>
+        </div>
+        <div class="tray-row">
+          <div class="unit mem"><b>Storage racks</b>parallel filesystem + object; checkpoint burst buffers</div>
+          <div class="unit sw"><b>Head/mgmt nodes</b>Slurm/K8s control plane, monitoring, provisioning</div>
+        </div>
+      </div>
+      <p class="note">Parallelism maps onto the hierarchy: tensor-parallel inside the NVLink domain, pipeline/data-parallel across racks, with NCCL choosing ring/tree algorithms per topology.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ================= L5 : DATACENTER ================= -->
+<section id="dc">
+  <h2><span class="lv" style="background:var(--pwr);color:#160510">L5</span> AI Datacenter — the outer shell</h2>
+  <p class="desc">An AI "factory" is ultimately a power-and-heat problem: at ~120 kW per rack, a single 8-rack pod draws ~1 MW before networking and storage.</p>
+  <div class="panel">
+    <div class="tray">
+      <div class="tray-row">
+        <div class="unit pwr"><b>Power train</b>utility feed → substation → UPS → PDU → 48V busbar</div>
+        <div class="unit pwr"><b>Cooling plant</b>facility water → CDUs → cold plates; heat reuse / dry coolers</div>
+        <div class="unit net"><b>DC fabric</b>pod interconnect, WAN/peering, optical plant</div>
+      </div>
+      <div class="tray-row">
+        <div class="unit sw"><b>DCIM / BMS</b>telemetry, power capping, failure domains</div>
+        <div class="unit mem"><b>Bulk storage tiers</b>dataset lakes, archives</div>
+        <div class="unit cpu"><b>General compute</b>data prep, orchestration, inference frontends</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= SOFTWARE ================= -->
+<section id="software">
+  <h2><span class="lv" style="background:var(--sw);color:#06211b">SW</span> Software Stack — silicon to serving</h2>
+  <p class="desc">Every layer below exists to keep tensor cores busy. Bottom-up:</p>
+  <div class="swstack">
+    <div class="swl"><div class="n">7 · Orchestration<small>cluster-level</small></div><div class="items"><i>Kubernetes + GPU Operator</i><i>Slurm</i><i>Run:ai</i><i>Base Command</i><i>DCGM monitoring</i><i>MIG partitioning</i></div></div>
+    <div class="swl"><div class="n">6 · Training &amp; serving<small>job-level</small></div><div class="items"><i>Megatron-Core</i><i>NeMo</i><i>DeepSpeed / FSDP</i><i>TensorRT-LLM</i><i>vLLM · SGLang</i><i>Triton Inference Server / Dynamo</i></div></div>
+    <div class="swl"><div class="n">5 · Frameworks<small>model-level</small></div><div class="items"><i>PyTorch</i><i>JAX / XLA</i><i>torch.compile / Inductor</i><i>Triton (OpenAI kernel DSL)</i></div></div>
+    <div class="swl"><div class="n">4 · Communication<small>multi-GPU / multi-node</small></div><div class="items"><i>NCCL (all-reduce, all-to-all)</i><i>NVSHMEM</i><i>GPUDirect RDMA</i><i>GPUDirect Storage</i><i>SHARP in-network compute</i></div></div>
+    <div class="swl"><div class="n">3 · Math libraries<small>kernel-level</small></div><div class="items"><i>cuBLAS / cuBLASLt</i><i>cuDNN</i><i>CUTLASS</i><i>cuFFT · cuSPARSE</i><i>Transformer Engine (FP8/FP4 recipes)</i></div></div>
+    <div class="swl"><div class="n">2 · CUDA platform<small>programming model</small></div><div class="items"><i>CUDA Runtime &amp; Driver API</i><i>NVCC → PTX → SASS</i><i>CUDA Graphs</i><i>Streams &amp; events</i><i>Unified memory</i></div></div>
+    <div class="swl"><div class="n">1 · System software<small>node-level</small></div><div class="items"><i>GPU kernel driver + GSP firmware</i><i>Fabric Manager (NVLink domain)</i><i>DOCA (BlueField)</i><i>VBIOS / SBIOS</i><i>Linux + hugepages/NUMA tuning</i></div></div>
+  </div>
+</section>
+
+<footer>
+  <p><b>Scope &amp; caveats:</b> figures are NVIDIA-published or widely reported values for B200 / GB200 NVL72 (2024–2026); some microarchitectural details (per-die SM counts, L2 size) are not officially disclosed and are marked as approximate. Diagrams are schematic, not to scale.</p>
+  <p style="margin-top:6px">Key specs cross-checked against NVIDIA's GB200 NVL72 page, HGX B200 materials, and third-party teardowns (SemiAnalysis-style rack analyses, Jarvis Labs / Spheron spec sheets).</p>
+</footer>
+
+</div>
+<script>
+  document.querySelectorAll('[data-smgrid]').forEach(g=>{
+    for(let i=0;i<72;i++){const c=document.createElement('div');c.className='sm-cell t';g.appendChild(c);}
+  });
+</script>
+</body>
+</html>

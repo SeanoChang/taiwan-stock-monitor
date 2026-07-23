@@ -5,7 +5,7 @@ import type { Locale } from '@/lib/i18n/config';
 /**
  * Locale switcher. A server function sets the cookie and the route re-renders
  * in the chosen language, so this needs no client JS of its own — and it stays
- * renderable from both the server board and the client explorer/graph chrome.
+ * renderable from both server pages and the client explorer/graph chrome.
  *
  * Quiet product-bar control — no pill chrome, matches the nav anchors.
  */

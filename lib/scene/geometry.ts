@@ -40,9 +40,9 @@ export function createGeometryHelpers(scene: THREE.Scene): GeometryHelpers {
     z: number,
     parent?: THREE.Object3D,
   ) {
-    // Plan 007 Part D: rounded box edges (radius scaled to the smallest side,
-    // capped) catch the env-map highlight along each edge — reads as machined
-    // metal instead of a flat prism. Segments kept low (2) to stay cheap.
+    // Rounded box edges (radius scaled to the smallest side, capped) catch
+    // the env-map highlight along each edge — reads as machined metal
+    // instead of a flat prism. Segments kept low (2) to stay cheap.
     const r = Math.min(w, h, d) * 0.06;
     const m = new THREE.Mesh(new RoundedBoxGeometry(w, h, d, 2, r), mat);
     m.position.set(x, y, z);
@@ -61,9 +61,9 @@ export function createGeometryHelpers(scene: THREE.Scene): GeometryHelpers {
     parent?: THREE.Object3D,
     seg?: number,
   ) {
-    // Plan 007 Part D: 24 → 48 radial segments removes visible faceting on the
-    // round parts (pins/posts/cans) without a meaningful vertex-count cost at
-    // this scene's mesh count. Explicit per-call `seg` still overrides.
+    // 48 radial segments removes visible faceting on the round parts
+    // (pins/posts/cans) without a meaningful vertex-count cost at this
+    // scene's mesh count. Explicit per-call `seg` still overrides.
     const m = new THREE.Mesh(new THREE.CylinderGeometry(rt, rb, h, seg || 48), mat);
     m.position.set(x, y, z);
     (parent || scene).add(m);

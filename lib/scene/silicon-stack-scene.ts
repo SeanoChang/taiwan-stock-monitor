@@ -20,46 +20,19 @@ import {
   createGlowMaterials,
   createMaterials,
 } from '@/lib/scene/materials';
-import {
-  activeLevelFor,
-  evalCamera,
-  evalExposure,
-  evaluate,
-} from '@/lib/scene/disassembly-timeline';
 import { ALL_PART_IDS, createPartRegistry } from '@/lib/scene/parts';
-import type {
-  CamSpec,
-  Level,
-  LevelContext,
-  PartId,
-  SceneApi,
-  SceneMode,
-  SceneOptions,
-} from '@/lib/scene/types';
+import type { CamSpec, Level, LevelContext, SceneApi, SceneOptions } from '@/lib/scene/types';
 import type { Locale } from '@/lib/i18n/config';
 
 export type { SceneApi, SceneOptions } from '@/lib/scene/types';
 
-/** True if `node` is `root` or a descendant of it (walks `.parent`). Used by
- * projectPart's occlusion raycast to ignore self-hits — a part's own anchor
- * often sits inside its own solid geometry, which would otherwise "occlude"
- * itself. */
-function isInSubtree(root: THREE.Object3D, node: THREE.Object3D): boolean {
-  let o: THREE.Object3D | null = node;
-  while (o) {
-    if (o === root) return true;
-    o = o.parent;
-  }
-  return false;
-}
-
-/** Resolves the Phase F Task 2 post-stack toggle: `opts.fx === false` forces
- * it off (an explicit low-device-tier flag); otherwise `?fx=0`/`?fx=false` in
- * the current URL disables it; anything else (including no query param at
- * all) leaves it on. createScene always runs client-side (both call sites —
- * use-scene.ts and scrolly-stage.tsx — import() it inside a mount effect),
- * so `window` is safe to read here, but the check stays guarded in case a
- * future caller ever calls this from a non-browser context. */
+/** Resolves the post-stack toggle: `opts.fx === false` forces it off (an
+ * explicit low-device-tier flag); otherwise `?fx=0`/`?fx=false` in the
+ * current URL disables it; anything else (including no query param at all)
+ * leaves it on. createScene always runs client-side (use-scene.ts import()s
+ * it inside a mount effect), so `window` is safe to read here, but the check
+ * stays guarded in case a future caller ever calls this from a non-browser
+ * context. */
 function resolveFx(explicit: boolean | undefined): boolean {
   if (explicit === false) return false;
   if (explicit === true) return true;
@@ -104,8 +77,7 @@ export function createScene(opts: SceneOptions): SceneApi {
   // ---------- image-based lighting ----------
   // Procedural PMREM studio env (three@0.152's built-in `RoomEnvironment` —
   // no binary HDRI asset) so every PBR material gets physically-plausible
-  // specular + diffuse IBL instead of punctual lights alone (Phase F Task 1;
-  // docs/superpowers/apple-redesign/02-high-fidelity-rendering). The
+  // specular + diffuse IBL instead of punctual lights alone. The
   // generator and its source room scene are one-shot bake inputs — both are
   // disposed immediately after `scene.environment` is set; only the baked
   // PMREM texture is kept alive (and is released in api.dispose() below).
@@ -128,12 +100,11 @@ export function createScene(opts: SceneOptions): SceneApi {
   scene.add(rim);
 
   // ---------- post stack (bloom + SMAA) behind ?fx ----------
-  // Phase F Task 2 (docs/superpowers/apple-redesign/02-high-fidelity-rendering).
-  // WebGL-render-path only: explore/scrub/cards/overlays are untouched, and
-  // `?fx=0` (or `opts.fx === false`) yields the exact pre-Phase-F path —
+  // WebGL-render-path only: orbit/hotspot behavior is untouched, and
+  // `?fx=0` (or `opts.fx === false`) yields the plain path —
   // `renderer.render(scene, camera)` — with `composer` simply never built.
   //
-  // Deviation from the plan/design doc, verified against the installed
+  // Verified against the installed
   // three@0.152.2: `three/examples/jsm/postprocessing/OutputPass.js` does not
   // exist in this version (it landed in three.js after 0.152 — confirmed by
   // listing node_modules/three/examples/jsm/postprocessing/, which has no
@@ -214,14 +185,6 @@ export function createScene(opts: SceneOptions): SceneApi {
   let cur = -1,
     animating = false,
     cooldownUntil = 0;
-  // Phase C — 'explore' is the pre-existing goLevel/orbit/hotspot behavior,
-  // untouched below; it stays the default until something calls
-  // api.setMode('scrolly'). `scrollP` is a plain module-local number (never
-  // React state) fed by api.setScrollProgress() each frame from the scroll
-  // island's rAF loop — poses are re-derived from it every frame via the pure
-  // evaluate(p)/evalCamera(p) timeline, so there is nothing to drift.
-  let mode: SceneMode = 'explore';
-  let scrollP = 0;
 
   const controls = createOrbitControls({
     el: renderer.domElement,
@@ -259,131 +222,6 @@ export function createScene(opts: SceneOptions): SceneApi {
 
   function wait(ms: number) {
     return new Promise<void>((r) => setTimeout(r, ms));
-  }
-
-  // Phase C — the entire scrolly render path. Pure function of `p`: every
-  // part pose and the camera pose are re-derived from `evaluate(p)` /
-  // `evalCamera(p)` every call, so scrubbing forward then back lands on
-  // exactly the same poses (no accumulation, no setState — see D-002).
-  // Lid onset/offset (.32/.62) mirror BOUNDS[3]/BOUNDS[5] in
-  // disassembly-timeline.ts (ch3 lid-lift through the end of ch4 board
-  // explode); not imported to keep this task's file scope to
-  // silicon-stack-scene.ts/types.ts/parts.ts only.
-  function applyDisassembly(p: number) {
-    const lv = activeLevelFor(p);
-    levels.forEach((l, k) => {
-      l.group.visible = k === lv;
-      // Hotspots aren't projected in scrolly mode (see frame() below); hide
-      // every level's DOM layer so no stale-positioned hotspot markers show.
-      l.dom!.style.display = 'none';
-    });
-    fog.near = levels[lv].fog[0];
-    fog.far = levels[lv].fog[1];
-    // Phase F Task 3 — per-chapter exposure track (timeline owns it; see
-    // disassembly-timeline.ts's EXPOSURE_TRACK/evalExposure doc comment).
-    // Explore mode never calls applyDisassembly, so it keeps the renderer's
-    // fixed boot exposure (1.06, set above) untouched — and since scrolly→
-    // explore handoff always disposes this scene instance and mounts a fresh
-    // one (see setMode's doc comment below), that fixed value is exactly
-    // what the next frame renders with; nothing to reset here.
-    renderer.toneMappingExposure = evalExposure(p);
-
-    const lidObj = parts.get('lid');
-    if (lidObj) lidObj.visible = p >= 0.32 && p < 0.62;
-
-    for (const [id, pose] of evaluate(p)) parts.applyPoseFromBase(id, pose);
-
-    const c = evalCamera(p);
-    ctl.target.set(c.target[0], c.target[1], c.target[2]);
-    ctl.r = ctl.dR = c.r;
-    ctl.theta = ctl.dTheta = c.theta;
-    ctl.phi = ctl.dPhi = c.phi;
-    // Position the camera directly from the (now drift-free, undamped) ctl
-    // state — the same spherical→cartesian math controls.update() uses for
-    // explore mode, applied here without its auto-rotate/pointer-damping
-    // logic so the camera is an exact function of p, not of frame timing.
-    camera.position.set(
-      ctl.target.x + ctl.r * Math.sin(ctl.phi) * Math.sin(ctl.theta),
-      ctl.target.y + ctl.r * Math.cos(ctl.phi),
-      ctl.target.z + ctl.r * Math.sin(ctl.phi) * Math.cos(ctl.theta),
-    );
-    camera.lookAt(ctl.target);
-  }
-
-  // ---------- Phase D — part projection + throttled occlusion ----------
-  // Reused scratch objects (mirrors hotspots.ts's module-level `v`/`camWorld`
-  // reuse pattern) — safe because every projectPart() call fully consumes
-  // them synchronously before returning, so nothing can observe a
-  // mid-mutation value across calls.
-  const raycaster = new THREE.Raycaster();
-  const pAnchor = new THREE.Vector3();
-  const pNdc = new THREE.Vector3();
-  const pCamWorld = new THREE.Vector3();
-  const pRayDir = new THREE.Vector3();
-  // Per-id occlusion cache — raycasting every candidate part every frame is
-  // wasted work (occlusion changes slowly relative to scroll/orbit speed),
-  // so each id's `occluded` flag is only recomputed once per TTL.
-  const occlusionCache = new Map<string, { occluded: boolean; t: number }>();
-  const OCCLUSION_TTL_MS = 150;
-
-  /** The level whose group is actually visible right now, in either mode —
-   * scrolly derives it from scroll progress the same way applyDisassembly
-   * does; explore just reads the current zoom level. */
-  function activeLevelIndex(): number {
-    return mode === 'scrolly' ? activeLevelFor(scrollP) : cur;
-  }
-
-  function projectPart(
-    id: PartId,
-    anchor: [number, number, number] = [0, 0, 0],
-  ): { x: number; y: number; onScreen: boolean; occluded: boolean } | null {
-    const obj = parts.get(id);
-    if (!obj || !obj.visible) return null;
-
-    // World anchor: the part's local-space anchor point (default its own
-    // origin) carried through its current world matrix.
-    obj.updateWorldMatrix(true, false);
-    const w = obj.localToWorld(pAnchor.set(anchor[0], anchor[1], anchor[2]));
-
-    // Project to px — identical NDC→px math to projectHotspots (hotspots.ts).
-    const W = container.clientWidth,
-      H = container.clientHeight;
-    pNdc.copy(w).project(camera);
-    const x = ((pNdc.x + 1) / 2) * W,
-      y = ((1 - pNdc.y) / 2) * H;
-    const onScreen = pNdc.z <= 1 && x >= 0 && x <= W && y >= 0 && y <= H;
-
-    // Occlusion — throttled raycast from the camera toward the world anchor
-    // against the active level's meshes only (an inactive level's group is
-    // `visible = false`, and three.js's raycaster already skips invisible
-    // subtrees, so this can't false-occlude against a hidden level/lid).
-    const now = performance.now();
-    const cached = occlusionCache.get(id);
-    let occluded: boolean;
-    if (cached && now - cached.t < OCCLUSION_TTL_MS) {
-      occluded = cached.occluded;
-    } else {
-      occluded = false;
-      camera.getWorldPosition(pCamWorld);
-      const dist = pCamWorld.distanceTo(w);
-      const lv = levels[activeLevelIndex()];
-      if (lv && dist > 1e-6) {
-        pRayDir.copy(w).sub(pCamWorld).normalize();
-        raycaster.set(pCamWorld, pRayDir);
-        raycaster.near = 0;
-        raycaster.far = dist;
-        const hits = raycaster.intersectObject(lv.group, true);
-        // "Meaningfully closer" margin, scaled with distance so it holds
-        // across the scene's very different zoom levels (rack vs. die) —
-        // and skip hits inside the anchored part's own subtree, since the
-        // anchor commonly sits inside (not on the surface of) its geometry.
-        const eps = Math.max(0.08, dist * 0.015);
-        occluded = hits.some((h) => h.distance < dist - eps && !isInSubtree(obj, h.object));
-      }
-      occlusionCache.set(id, { occluded, t: now });
-    }
-
-    return { x, y, onScreen, occluded };
   }
 
   const api: SceneApi = {
@@ -450,32 +288,6 @@ export function createScene(opts: SceneOptions): SceneApi {
       LOCALE = loc;
       setHotspotLocale(levels, LOCALE);
     },
-    applyPose: (id, pose) => parts.applyPose(id, pose),
-    getPart: (id) => parts.get(id),
-    setMode(m: SceneMode) {
-      if (mode === m) return;
-      mode = m;
-      // 'explore' has no reset work here (review finding — dead branch
-      // removed): the only caller that hands off scrolly→explore
-      // (components/explorer/scrolly/scrolly-stage.tsx's handleHandoff)
-      // calls this immediately before unmounting ScrollyStage, which disposes
-      // this exact scene instance and mounts a brand-new one via
-      // use-scene.ts/SiliconStackExplorer — a fresh scene that starts every
-      // part at its registered base pose already, with nothing to reset. If
-      // a future caller ever flips scrolly→explore *without* disposing the
-      // scene, this branch would need to come back.
-      if (m === 'scrolly') {
-        // Scrolly owns the camera every frame via applyDisassembly(); disable
-        // auto-rotate/idle-drift and make sure no explore-mode level
-        // transition is left mid-flight fighting for ctl state.
-        controls.setAutoRotate(false);
-        animating = false;
-      }
-    },
-    setScrollProgress(p: number) {
-      scrollP = p;
-    },
-    projectPart,
     dispose() {
       disposed = true;
       scene.environment?.dispose();
@@ -518,24 +330,20 @@ export function createScene(opts: SceneOptions): SceneApi {
   function frame() {
     if (disposed) return;
     tick(frame);
-    if (mode === 'scrolly') applyDisassembly(scrollP);
-    else controls.update(camera);
+    controls.update(camera);
     if (composer) composer.render();
     else renderer.render(scene, camera);
-    // hotspot projection — explore mode only (scrolly hides every level's DOM
-    // layer in applyDisassembly, but skip the projection work entirely too).
-    if (mode === 'explore' && cur >= 0 && !animating)
-      projectHotspots(levels[cur].hotspots, camera, container);
+    if (cur >= 0 && !animating) projectHotspots(levels[cur].hotspots, camera, container);
   }
 
   // resize
   function resize() {
     const w = container.clientWidth || 1,
       h = container.clientHeight || 1;
-    // Plan 007 Part D: re-apply the clamped DPR every resize so a device-pixel-
-    // ratio change after mount (dragging between a retina and non-retina
-    // monitor, or a browser-zoom change) stays crisp instead of blurring until
-    // remount. Same min(dpr,2) cap the renderer used at init (line 92).
+    // Re-apply the clamped DPR every resize so a device-pixel-ratio change
+    // after mount (dragging between a retina and non-retina monitor, or a
+    // browser-zoom change) stays crisp instead of blurring until remount.
+    // Same min(dpr,2) cap the renderer used at init.
     const pr = Math.min(window.devicePixelRatio || 1, 2);
     renderer.setPixelRatio(pr);
     renderer.setSize(w, h);

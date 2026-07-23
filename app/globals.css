@@ -8,7 +8,6 @@
 
 @theme inline {
   --color-background: var(--background);
-  --color-surface-1: var(--surface-1);
   --color-foreground: var(--foreground);
   --font-sans:
     var(--font-geist-sans), -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang TC',
@@ -22,7 +21,6 @@
   --color-input: var(--input);
   --color-border: var(--border);
   --color-destructive: var(--destructive);
-  --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
   --color-muted-foreground: var(--muted-foreground);
   --color-muted: var(--muted);
@@ -31,34 +29,24 @@
   --color-secondary: var(--secondary);
   --color-primary-foreground: var(--primary-foreground);
   --color-primary: var(--primary);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-popover: var(--popover);
-  --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
   --color-surface-veil: var(--surface-veil);
-  --color-up: var(--up);
-  --color-down: var(--down);
   /* Apple pill + card radii (base 20px) */
   --radius-sm: calc(var(--radius) * 0.4); /* 8px  */
   --radius-md: calc(var(--radius) * 0.55); /* 11px */
   --radius-lg: var(--radius); /* 20px */
-  --radius-xl: calc(var(--radius) * 1.4);
   --radius-pill: 999px;
 }
 
 /*
- * Apple grammar, dark-first (near-black pro-page pattern). Navy is retired to
- * the 3D stage backdrop only (--stage-bg). Amber stays the single accent.
+ * Apple grammar, dark-first (near-black pro-page pattern). Navy lives only in
+ * the 3D scene's own backdrop (lib/scene). Amber stays the single accent.
  */
 :root {
   color-scheme: dark;
   --background: #0b0d10;
-  --surface-1: #101317;
   --foreground: #f5f5f7;
   --card: #15181d;
-  --card-foreground: #f5f5f7;
-  --popover: #15181d;
-  --popover-foreground: #f5f5f7;
   --primary: #ffb703;
   --primary-foreground: #0b0d10;
   --secondary: rgba(255, 255, 255, 0.06);
@@ -67,23 +55,12 @@
   --muted-foreground: #a1a1a6;
   --tertiary: #8a8a8f; /* Apple caption gray, lightened from #6e6e73 to clear AA 4.5:1 on near-black fine print */
   --accent: rgba(255, 255, 255, 0.08);
-  --accent-foreground: #f5f5f7;
   --destructive: #e66767;
   --border: rgba(255, 255, 255, 0.08);
   --input: rgba(255, 255, 255, 0.12);
   --ring: rgba(255, 183, 3, 0.6);
   --radius: 1.25rem;
   --surface-veil: rgba(11, 13, 16, 0.72);
-  --stage-bg: #0d1b2a; /* navy — 3D scene backdrop only */
-  /* market colors assigned per locale in code (zh 紅漲綠跌) */
-  --up: #5ad19a;
-  --down: #ff8585;
-  /* motion */
-  --ease-apple: cubic-bezier(0.25, 0.1, 0.3, 1);
-  --ease-snappy: cubic-bezier(0.4, 0, 0.6, 1);
-  --dur-micro: 160ms;
-  --dur-reveal: 600ms;
-  --dur-hero: 1000ms;
 }
 
 @layer base {
@@ -99,28 +76,7 @@
 }
 
 @layer components {
-  /* ---- Apple marketing type ramp (headlines use --font-marketing) ---- */
-  .text-display {
-    font-family: var(--font-marketing);
-    font-size: clamp(56px, 8vw, 96px);
-    font-weight: 600;
-    line-height: 1.05;
-    letter-spacing: -0.015em;
-  }
-  .text-headline {
-    font-family: var(--font-marketing);
-    font-size: clamp(40px, 6vw, 64px);
-    font-weight: 600;
-    line-height: 1.08;
-    letter-spacing: -0.012em;
-  }
-  .text-title {
-    font-family: var(--font-marketing);
-    font-size: clamp(28px, 4vw, 40px);
-    font-weight: 600;
-    line-height: 1.1;
-    letter-spacing: -0.01em;
-  }
+  /* ---- Apple marketing type (--font-marketing) ---- */
   .text-eyebrow {
     font-family: var(--font-marketing);
     font-size: clamp(12px, 1.5vw, 14px);
@@ -128,23 +84,11 @@
     letter-spacing: 0.1em;
     color: var(--muted-foreground);
   }
-  .text-body-lg {
-    font-family: var(--font-marketing);
-    font-size: clamp(19px, 2vw, 21px);
-    font-weight: 400;
-    line-height: 1.5;
-  }
   .text-body {
     font-family: var(--font-marketing);
     font-size: 17px;
     font-weight: 400;
     line-height: 1.6;
-  }
-  /* zh renders one weight lighter on the ramp (design token doc) */
-  html:lang(zh) .text-display,
-  html:lang(zh) .text-headline,
-  html:lang(zh) .text-title {
-    font-weight: 500;
   }
   /* uppercase eyebrow only for latin */
   html:lang(en) .text-eyebrow {

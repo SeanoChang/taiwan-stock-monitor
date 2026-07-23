@@ -18,7 +18,7 @@ export interface SceneOptions {
   onReady?: () => void;
   onInteract?: () => void;
   onDepthEnd?: () => void;
-  // Phase F Task 2 — post stack (bloom + SMAA + tone-map/sRGB output) toggle.
+  // Post stack (bloom + SMAA + tone-map/sRGB output) toggle.
   // `undefined` (the default): on, unless the URL has `?fx=0`/`?fx=false`.
   // `false`: force it off regardless of the URL (an explicit low-device-tier
   // flag a future caller can pass). `true`: force it on even under `?fx=0`.
@@ -34,34 +34,7 @@ export interface SceneApi {
   setAutoRotate: (b: boolean) => void;
   setLocale: (loc: Locale) => void;
   dispose: () => void;
-  // Optional in Phase B Task 1 (types + registry only, no scene wiring yet —
-  // that's Task 2). Tighten to required once createScene always implements
-  // them; kept optional here so this type-only change can't break the build.
-  applyPose?: (id: PartId, pose: Pose) => void;
-  getPart?: (id: PartId) => THREE.Object3D | undefined;
-  // Phase C Task 2 — always implemented by createScene. `mode` defaults to
-  // 'explore' (the pre-existing goLevel/orbit/hotspots behavior, byte-identical
-  // until something calls setMode('scrolly')). `setScrollProgress` feeds the
-  // scrolly render loop a scroll-derived p ∈ [0,1]; it is only read while
-  // mode === 'scrolly'.
-  setMode: (m: SceneMode) => void;
-  setScrollProgress: (p: number) => void;
-  // Phase D Task 2 — always implemented by createScene. World→screen
-  // projection of an arbitrary local-space anchor on a registered part, plus
-  // a throttled occlusion raycast against the currently active level's
-  // meshes. Additive: does not read or affect the explore/scrolly frame loop
-  // above. Returns null when the part isn't registered or isn't visible.
-  projectPart: (
-    id: PartId,
-    anchor?: [number, number, number],
-  ) => { x: number; y: number; onScreen: boolean; occluded: boolean } | null;
 }
-
-/** The scene's two render modes: 'explore' is the existing orbit/goLevel/
- * hotspot behavior (default, untouched by Phase C); 'scrolly' drives every
- * part + the camera from `disassembly-timeline.ts`'s evaluate(p)/evalCamera(p)
- * each frame — no GSAP tweens ever touch three.js objects (decision D-002). */
-export type SceneMode = 'explore' | 'scrolly';
 
 export interface Hotspot {
   title: LStr;
@@ -99,18 +72,16 @@ export interface LevelContext extends GeometryHelpers {
   GLOWDIM: THREE.MeshStandardMaterial;
   ACC: THREE.Color;
   accents: AccentRegistry;
-  // Optional for the same reason as SceneApi.applyPose/getPart above — Task 2
-  // threads the actual registry into createScene's ctx object.
+  // Optional so type-only consumers can build a LevelContext without a
+  // registry; createScene always threads the actual registry into ctx.
   parts?: PartRegistry;
 }
 
 export type LevelBuilder = (g: THREE.Group, lv: Level, ctx: LevelContext) => void;
 
 // ---------- Part registry (addressable sub-assemblies) ----------
-// PartId is the contract with Phase C (disassembly timeline), Phase D
-// (annotation anchors) and Phase G (tree containment 3D). The `/` explorer's
-// Level API above is untouched — parts are additive handles into the same
-// meshes, registered by level builders as they construct the scene.
+// Parts are additive handles into the same meshes the Level API above owns,
+// registered by level builders as they construct the scene.
 
 export type PartId =
   | 'rack'
@@ -135,31 +106,11 @@ export interface Pose {
   opacity?: number; // 0..1; triggers per-part material isolation
 }
 
-/**
- * A base-relative DELTA pose — the shape the Phase C disassembly timeline
- * emits from `evaluate(p)` (see `lib/scene/disassembly-timeline.ts`'s
- * `PartPose`, which is structurally identical by design so its Map values
- * pass straight into `applyPoseFromBase` with no conversion). Unlike `Pose`
- * above (an absolute transform), position/rotation here are offsets added to
- * the part's registered base transform and scale is a multiplier on the base
- * scale — so a part with no active keyframe (`{}`) simply sits at its base
- * pose. Opacity remains absolute (0..1), same semantics as `Pose.opacity`.
- */
-export interface PoseDelta {
-  position?: [number, number, number];
-  rotation?: [number, number, number];
-  scale?: number;
-  opacity?: number;
-}
-
 export interface PartRegistry {
   register: (id: PartId, obj: THREE.Object3D) => THREE.Object3D;
   get: (id: PartId) => THREE.Object3D | undefined;
   has: (id: PartId) => boolean;
   ids: () => PartId[];
   applyPose: (id: PartId, pose: Pose) => void;
-  // Phase C Task 2 — deltas from base (see PoseDelta above); this is what the
-  // scrolly render loop calls every frame with evaluate(p)'s output.
-  applyPoseFromBase: (id: PartId, pose: PoseDelta) => void;
   reset: (id: PartId) => void; // restore captured base transform + opacity 1
 }

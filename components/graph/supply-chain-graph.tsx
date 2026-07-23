@@ -57,8 +57,7 @@ const layoutStore = (() => {
 interface SupplyChainGraphProps {
   locale: Locale;
   focus?: string;
-  /** deep link: /supply-chain?group=<GROUP_LABELS index>, e.g. the explorer's
-   * `<TierRibbon>` tile clicks (Plan 006 Phase E, Task 4/5) — pre-validated
+  /** deep link: /supply-chain?group=<GROUP_LABELS index> — pre-validated
    * by the page (an in-range integer or `undefined`), so this is trusted as-
    * is, the same contract `focus` already has. */
   initialGroupFilter?: number;

@@ -12,18 +12,13 @@
     "format:check": "prettier --check .",
     "check:data": "tsx scripts/check-supply-chain.ts",
     "check:parts": "tsx scripts/check-parts.ts",
-    "check:timeline": "tsx scripts/check-timeline.ts",
-    "check:hardware": "tsx scripts/check-hardware.ts",
-    "check:branches": "tsx scripts/check-branches.ts",
-    "check:tree": "tsx scripts/check-tree.ts",
-    "test": "pnpm check:data && pnpm check:parts && pnpm check:timeline && pnpm check:hardware && pnpm check:branches && pnpm check:tree"
+    "test": "pnpm check:data && pnpm check:parts"
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "d3-force": "^3.0.0",
-    "gsap": "^3.15.0",
     "lucide-react": "^1.24.0",
     "next": "16.2.10",
     "react": "19.2.7",

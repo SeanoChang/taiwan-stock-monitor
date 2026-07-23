@@ -9,7 +9,9 @@
 自動化」的周邊環。** 資料集應照站點分層，並誠實標外商錨點。
 
 ## 黃光 / 微影 Lithography [s]
+
 站點鏈：HMDS prime → 塗佈 coat → 軟烤 → 曝光 expose → PEB → 顯影 develop。
+
 - **曝光機**：ASML EUV/High-NA。2026/7/15 ASML 宣布 Intel 18A 的 Panther Lake 成全球首個
   High-NA EUV 量產出貨邏輯產品、EXE:5200B 驗收；台積電 High-NA 僅研發（魏哲家 2026/6 稱已
   購多台、單價約 4 億美元，A14/A16/A13/A12 量產都不需 High-NA，導入純看成本）。台積電營運
@@ -41,6 +43,7 @@
   2025 底、2026 放量；本業 ALD/PVD 與面板級封裝 PVD）。
 
 ## 蝕刻 Etch [s]
+
 - **乾蝕刻＝Lam/TEL/AMAT**（HAR 蝕刻、cryo etch）。台灣無整機廠。
 - **腔體零件經濟學（台廠核心）**：蝕刻腔耗石英件、Si/SiC 電極與環、Y2O3/陶瓷鍍層，需定期
   更換＋精密清洗/再鍍。**翔名8091**（蝕刻/離子植入/薄膜零件與鍍膜，已過台積電 2nm 耗材）、
@@ -56,6 +59,7 @@
   近期媒體「石英元件」行情指石英振盪器（晶技等），非蝕刻腔石英件。
 
 ## 薄膜 / 沉積 Deposition [s]
+
 - **設備**：ASM International 單片式 ALD >55%；AMAT PVD 濺鍍約 85% 壟斷、CVD 約 30% 居首；
   批次 LPCVD/爐管由日本 Kokusai。3nm FinFET→2nm GAA 使每 10 萬片/月的 ALD+Epi 設備市場
   +4 億美元。
@@ -74,6 +78,7 @@
   並列。
 
 ## 清洗 Clean / CMP / 檢測 Inspection [s]
+
 - **清洗＝SCREEN 獨大**（單片 SU/批次 FC/spin scrubber SS 三類全球第一，累計出貨 >15,000 台）。
   **辛耘3583** 自製濕製程涵蓋前段（WS 批次成膜前清洗/蝕刻/剝離、Polar 單片清洗/蝕刻）＋約
   16 萬片/月 12 吋再生晶圓＋設備代理三大事業。**弘塑3131** 重心在先進封裝（CoWoS/SoIC/FOPLP）
@@ -93,11 +98,13 @@
 - **離子植入＝AMAT/Axcelis**，台灣僅零件（京鼎/千附精密）。
 
 ## 結構性缺口（進 gaps 檔）
+
 黃光三本體（曝光機/track/光阻）、蝕刻/沉積/CMP/檢測整機、CMP slurry、載板雷射/鍍銅——
 **台灣掛牌全數缺席或僅零件/代理**。資料集應以「外商錨點 + 台廠周邊環」分層，並把
 EUV 光阻、CMP slurry、鍍銅藥水列為「無台灣純標的」缺口，而非硬湊。
 
 ## 主要來源
+
 ASML PR（2026/7/15 High-NA）；TrendForce（2026/6 台積電 High-NA）；TechNews（台積電 EUV 效率、
 AMC SEMICON 2025、鈺祥）；Nomad Semi（TEL track 90%）；家登/家碩/華洋精機/天虹/台灣光罩/頌勝/
 兆聯 IR 與上市櫃公告；各公司月營收與法說；Yahoo 股市個股基本資料（市場別/掛牌日）。完整 URL 見

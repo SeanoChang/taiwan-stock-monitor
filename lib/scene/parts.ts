@@ -2,7 +2,7 @@
 // with pose application (transform always; opacity via lazy material isolation
 // so fading one part never bleeds through shared materials).
 import * as THREE from 'three';
-import type { PartId, Pose, PoseDelta, PartRegistry } from '@/lib/scene/types';
+import type { PartId, Pose, PartRegistry } from '@/lib/scene/types';
 
 export const ALL_PART_IDS: PartId[] = [
   'rack',
@@ -39,9 +39,6 @@ export const ALL_PART_IDS: PartId[] = [
 interface Base {
   pos: THREE.Vector3;
   quat: THREE.Quaternion;
-  euler: THREE.Euler; // captured alongside quat — applyPoseFromBase adds
-  // timeline rotation deltas on top of this without a quat→euler conversion
-  // every frame.
   scale: THREE.Vector3;
 }
 
@@ -56,7 +53,6 @@ export function createPartRegistry(): PartRegistry {
     base.set(id, {
       pos: obj.position.clone(),
       quat: obj.quaternion.clone(),
-      euler: obj.rotation.clone(),
       scale: obj.scale.clone(),
     });
     return obj;
@@ -105,29 +101,6 @@ export function createPartRegistry(): PartRegistry {
     }
   }
 
-  // Phase C Task 2 — applies a base-relative DELTA pose (from
-  // disassembly-timeline.ts's evaluate(p)): position/rotation are offsets
-  // added to the registered base transform, scale is a multiplier on the
-  // base scale. A part with no active keyframe (pose === {}) resolves to
-  // exactly its base pose — never an accumulating drift, since every field
-  // is re-derived from `base` + the caller-supplied delta, not from the
-  // object's current transform.
-  function applyPoseFromBase(id: PartId, pose: PoseDelta) {
-    const obj = map.get(id);
-    const b = base.get(id);
-    if (!obj || !b) return;
-    const dp = pose.position ?? [0, 0, 0];
-    obj.position.set(b.pos.x + dp[0], b.pos.y + dp[1], b.pos.z + dp[2]);
-    const dr = pose.rotation ?? [0, 0, 0];
-    obj.rotation.set(b.euler.x + dr[0], b.euler.y + dr[1], b.euler.z + dr[2]);
-    const sm = pose.scale ?? 1;
-    obj.scale.set(b.scale.x * sm, b.scale.y * sm, b.scale.z * sm);
-    if (pose.opacity != null) {
-      isolate(id, obj);
-      setOpacity(obj, pose.opacity);
-    }
-  }
-
   function reset(id: PartId) {
     const obj = map.get(id);
     const b = base.get(id);
@@ -144,7 +117,6 @@ export function createPartRegistry(): PartRegistry {
     has: (id) => map.has(id),
     ids: () => [...map.keys()],
     applyPose,
-    applyPoseFromBase,
     reset,
   };
 }

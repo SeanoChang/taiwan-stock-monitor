@@ -30,8 +30,8 @@ export function buildServerLevel(g: THREE.Group, lv: Level, ctx: LevelContext) {
   box(0.05, 0.3, 1.5, M.frame, 1.15, 0, 0, ch);
   const board = box(2.14, 0.025, 1.36, M.pcb, 0, -0.13, 0, ch);
   ctx.parts?.register('board', board);
-  // Registered for the Phase C disassembly (which opens it); hidden by default
-  // so it never caps the chassis and occludes the server internals in explore mode.
+  // Hidden by default so it never caps the chassis and occludes the server
+  // internals; registered so the part-registry completeness check passes.
   const lid = box(2.3, 0.02, 1.5, M.frame, 0, 0.16, 0, ch);
   lid.visible = false;
   ctx.parts?.register('lid', lid);

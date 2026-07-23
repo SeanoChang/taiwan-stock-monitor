@@ -14,7 +14,6 @@ export const UI = {
   close: l('Close', '關閉'),
   navExplorer: l('3D Explorer', '3D 探索'),
   navGraph: l('Network graph', '供應鏈網絡圖'),
-  navMarket: l('Market board', '市場行情'),
 
   // explorer
   guidedTour: l('Guided tour', '導覽模式'),
@@ -56,40 +55,7 @@ export const UI = {
   ),
   clearFilter: l('Clear', '清除'),
 
-  // market board
-  marketTitle: l('Market board', '市場行情'),
-  marketSub: l(
-    'Daily quotes for every Taiwan-listed company in the chain — TWSE & TPEx open data',
-    '供應鏈中每一家台股公司的每日行情 — 台灣證交所與櫃買中心開放資料',
-  ),
-  colCode: l('Code', '代號'),
-  colName: l('Name', '名稱'),
-  colSegment: l('Segment', '供應鏈節點'),
-  colClose: l('Close', '收盤'),
-  colChange: l('Change', '漲跌'),
-  colChangePct: l('%', '幅度'),
-  colVolume: l('Volume (lots)', '成交量(張)'),
-  colMarket: l('Mkt', '市場'),
-  advancers: l('Up', '上漲'),
-  decliners: l('Down', '下跌'),
-  unchanged: l('Flat', '平盤'),
-  updatedAt: l('Data date', '資料日期'),
-  offline: l(
-    'Live feed unavailable — showing structure only',
-    '暫時無法取得行情 — 僅顯示供應鏈結構',
-  ),
-  sortBy: l('Sort', '排序'),
-  sortPctDesc: l('% change ↓', '漲幅 ↓'),
-  sortPctAsc: l('% change ↑', '跌幅 ↑'),
-  sortVolume: l('Volume', '成交量'),
-  sortCode: l('Code', '代號'),
-  searchMarket: l('Search code / name / segment…', '搜尋代號 / 名稱 / 節點…'),
-  searchAction: l('Search', '搜尋'),
-  viewInGraph: l('View in graph', '在圖譜中檢視'),
-  source: l(
-    'Source: TWSE / TPEx OpenAPI · updated ~5 min cache',
-    '資料來源：證交所／櫃買中心 OpenAPI · 約 5 分鐘快取',
-  ),
+  // quotes (company panel)
   live: l('Live', '即時'),
 } satisfies Record<string, LStr>;
 

@@ -1,7 +1,7 @@
 // Material palette for the Silicon Stack scene. Accent-driven materials register
 // themselves so setAccent() can re-tint them in place.
 //
-// Phase F Task 1 (IBL + PBR pass): every material below now carries an
+// IBL + PBR pass: every material below carries an
 // `envMapIntensity` so it picks up `scene.environment`'s PMREM studio env
 // (see silicon-stack-scene.ts), and the brushed-metal parts (frame/steel/
 // silver) are `MeshPhysicalMaterial` for a truer metallic response.
@@ -46,12 +46,7 @@ export function std(c: number, rough: number, metal: number, extra?: Record<stri
  * brushed-aluminum parts (frame/steel/silver) so metalness:1 reads as real
  * metal against the PMREM env instead of MeshStandardMaterial's coarser
  * specular approximation. */
-export function physical(
-  c: number,
-  rough: number,
-  metal: number,
-  extra?: Record<string, unknown>,
-) {
+export function physical(c: number, rough: number, metal: number, extra?: Record<string, unknown>) {
   return new THREE.MeshPhysicalMaterial(
     Object.assign({ color: c, roughness: rough, metalness: metal }, extra || {}),
   );

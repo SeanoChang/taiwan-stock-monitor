@@ -39,21 +39,18 @@ folded into the four `research-verified-*` files, the tree map's 半導體上游
 ABF sub-trees, the taxonomy, and `data-dataset-additions-semiconductor-upstream.md`.
 
 **Now ADDRESSED (was the user's substrate/ABF/黃光/materials question):**
+
 - ✅ ABF substrate chain — film (Ajinomoto), T-glass, foil, resist, drills,
   equipment, TW makers' AI sockets, glass-core next-gen.
 - ✅ Fab process steps 黃光/蝕刻/薄膜/清洗/CMP/檢測 — machines + parts + TW周邊環.
 - ✅ Foundation — wafer chain, mask chain, consumables, AI board materials.
 - ✅ Packaging/BEOL/CoWoS materials + fab circular-economy loop.
 
-**STILL OPEN after this pass:**
-8.  **上游三票驗證** — re-run the adversarial-verify + ticker stages for all
-    four upstream runs (cheap resume; research cached). Confirm every new
-    ticker before it enters `supply-chain.ts`. **← do this next.**
-9.  **結構性「無台廠」缺口** — decide how the UI represents links with no
-    Taiwan-listed hook (多晶矽/坩堝/EUV 光阻/CMP slurry/ABF 膜/T-glass/超薄銅箔/
-    防焊/鍍銅藥水/track/曝光機/光罩坯/光罩檢測): foreign-anchor node + gap badge,
-    not a forced TW proxy.
-10. **興櫃 watchlist** — 鈺祥7909/宇川7887/創鉅7918/科嶠4542 have no TWSE/TPEx
-    quote; decide whether to show as non-quoted watchlist nodes.
-11. **台光電 Rubin CCL 風險** — Doosan-wins-Rubin rumor (DigiTimes 2025/11) vs
-    台光電 ~60% AI-CCL: track before over-weighting the CCL node.
+**STILL OPEN after this pass:** 8. **上游三票驗證** — re-run the adversarial-verify + ticker stages for all
+four upstream runs (cheap resume; research cached). Confirm every new
+ticker before it enters `supply-chain.ts`. **← do this next.** 9. **結構性「無台廠」缺口** — decide how the UI represents links with no
+Taiwan-listed hook (多晶矽/坩堝/EUV 光阻/CMP slurry/ABF 膜/T-glass/超薄銅箔/
+防焊/鍍銅藥水/track/曝光機/光罩坯/光罩檢測): foreign-anchor node + gap badge,
+not a forced TW proxy. 10. **興櫃 watchlist** — 鈺祥7909/宇川7887/創鉅7918/科嶠4542 have no TWSE/TPEx
+quote; decide whether to show as non-quoted watchlist nodes. 11. **台光電 Rubin CCL 風險** — Doosan-wins-Rubin rumor (DigiTimes 2025/11) vs
+台光電 ~60% AI-CCL: track before over-weighting the CCL node.

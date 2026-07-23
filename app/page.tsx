@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { ScrollyHome } from '@/components/explorer/scrolly/scrolly-home';
+import { SiliconStackExplorer } from '@/components/explorer/silicon-stack-explorer';
 import { explorerCopy } from '@/components/explorer/explorer-copy';
 import { Brand } from '@/components/site/brand';
 import { LocaleToggle } from '@/components/site/locale-toggle';
@@ -14,10 +14,15 @@ export const metadata: Metadata = {
     '從資料中心機櫃到 4 奈米電晶體的互動式 3D 供應鏈探索。Interactive 3D journey through the AI supply chain, from rack to nanometer.',
 };
 
+// SiliconStackExplorer is a 'use client' island; this page stays a server
+// component — only the chrome slots (Brand/LocaleToggle/NavLinks/Badge) and
+// the resolved copy/locale cross the server/client boundary as props. The
+// heavy pieces stay client-split inside the island (effect-scoped import()
+// of the three.js scene; dynamic ssr:false CompanyPanel).
 export default async function HomePage() {
   const locale = await getLocale();
   return (
-    <ScrollyHome
+    <SiliconStackExplorer
       locale={locale}
       copy={explorerCopy(locale)}
       brand={<Brand locale={locale} tagline />}
@@ -36,7 +41,3 @@ export default async function HomePage() {
     />
   );
 }
-// Deep link (/#ch-N) and the 自由探索 handoff are handled client-side inside
-// ScrollyHome; this page stays a server component — only the chrome slots
-// (Brand/LocaleToggle/NavLinks/Badge) and the resolved copy/locale cross the
-// server/client boundary as props, same as before this task.

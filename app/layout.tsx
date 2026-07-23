@@ -20,7 +20,7 @@ export const metadata: Metadata = {
     template: '%s — 矽鏈 Silicon Stack',
   },
   description:
-    '台灣與全球 AI 供應鏈 · 從機櫃到奈米。互動式 3D 探索、供應鏈網絡圖與台股即時行情。Taiwan & the global AI supply chain — 3D explorer, network graph and live market board.',
+    '台灣與全球 AI 供應鏈 · 從機櫃到奈米。互動式 3D 探索與供應鏈網絡圖。Taiwan & the global AI supply chain — 3D explorer and network graph.',
 };
 
 export const viewport: Viewport = {
